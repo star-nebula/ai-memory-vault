@@ -25,7 +25,7 @@ tags: [分发钩子, 自定义指令, 记忆库, AI工具接入]
 ```text
 记忆库规则见工作区根 `Memory/`：
 入口 `Memory\_index.md`（分层路由），权威规则 `Memory\Rule.md`，短版钩子 `Memory\AGENTS.md`。
-记忆唯一落点 Obsidian，禁写任何工具私有位（`.workbuddy/memory/`、`~/.claude/`、`~/.workbuddy/MEMORY.md` 等）。
+记忆唯一落点 = 工作区根下的 `Memory/`（Markdown 记忆库），禁写任何工具私有位（`.workbuddy/memory/`、`~/.claude/`、`~/.workbuddy/MEMORY.md` 等）。
 写入 / 收尾前先读 `Rule.md` 对应节并做 Inbox 登记。
 ```
 
@@ -45,7 +45,7 @@ tags: [分发钩子, 自定义指令, 记忆库, AI工具接入]
 | Qoder | `~\.qoder\AGENTS.md`（用户级全局指令文件：跨项目自动注入、改后免重启热加载） | 完整版 |
 | 网页端 / 手机端 AI | 自定义指令、项目（Project）指令 | 完整版 |
 
-> 注：`~/.claude/CLAUDE.md`、`~\.zcode\AGENTS.md` 等都属**用户自己维护的配置**，与「禁写工具私有位」不冲突——后者禁的是 AI 把**记忆内容**写进工具私有目录。判据：工具位里只准放「指针 + 铁律短钩子」，任何具体偏好/决策/教训一律落 Obsidian。
+> 注：`~/.claude/CLAUDE.md`、`~\.zcode\AGENTS.md` 等都属**用户自己维护的配置**，与「禁写工具私有位」不冲突——后者禁的是 AI 把**记忆内容**写进工具私有目录。判据：工具位里只准放「指针 + 铁律短钩子」，任何具体偏好/决策/教训一律落记忆库。
 
 ## 四、维护约定（单一真源 + 一键同步）
 
