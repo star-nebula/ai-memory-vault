@@ -1,17 +1,16 @@
 # AI Memory Vault · 基于 Obsidian 的跨工具 AI 记忆库
 
-> 一套让 Claude Code / Codex / Cursor / Cline / Gemini CLI / Trae / Qoder / ZCode 等**所有 AI 工具共享同一份记忆**的目录结构 + 规则 + 门禁脚本，外加一个 Obsidian 工作台插件。全部结构、规则、脚本来自作者日常在用的私有配置，本文档即"把方法论开源"。
+> 一套让 Claude Code / Codex / Cursor / Cline / Gemini CLI / Trae / Qoder / ZCode 等**所有 AI 工具共享同一份记忆**的目录结构 + 规则 + 门禁脚本。全部结构、规则、脚本来自作者日常在用的私有配置，本文档即"把方法论开源"。
 
 **为什么需要它**：每个 AI 工具都有自己的"记忆"落点——`~/.claude/`、`~/.codex/`、`.workbuddy/memory/`、各家 auto-memory……工具各记各的，换一个工具就失忆，记忆内容混在工具配置里既不可读也不可审。本方案把**记忆的唯一落点收敛到一个 Obsidian 库**（Markdown + wiki 链接 + 本地文件，任何工具都能读写），工具侧只留一个"指针 + 铁律短钩子"。
 
-三周多的日常实测中，这套体系沉淀出 5 道门禁脚本、4 篇分节规则、1 个工作台插件。仓库内容：
+三周多的日常实测中，这套体系沉淀出四个门禁脚本与四篇分节规则。仓库内容：
 
 | 目录 | 是什么 |
 |---|---|
 | [docs/](docs/) | **构建思路**：为什么这么设计、每个门禁背后的事故 |
 | [starter/](starter/) | **可整体拷走的骨架**：目录结构 + 全套规则 + 示例项目（脱敏后的正本） |
 | [scripts/](scripts/) | **门禁脚本**：索引生成、待办审计、编码守卫、指令分发同步 |
-| [plugin/](plugin/) | **Obsidian 工作台插件**（knowledge-workspace）：博客 · 知识库 · 记忆三层结构的首页 |
 
 ## 核心理念（六条）
 
@@ -64,8 +63,6 @@ python scripts/encoding_guard.py <路径>  # 编码 + 裸控制符门禁
 
 **接入各 AI 工具**：见 `starter/Memory/Workflows/AI工具自定义指令.md`——完整版（贴进自定义指令框）与最小版（放进项目根 `AGENTS.md`）两套现成文案，覆盖 WorkBuddy / ZCode / Trae / Qoder / Claude Code / Codex / Cursor / Copilot / Cline 等常见落点；改完真源用 `scripts/sync_memory_instructions.py` 一键分发到多个工具的用户级指令位。
 
-**装工作台插件**：把 `plugin/` 拷到 `<vault>/.obsidian/plugins/knowledge-workspace/`，在 Obsidian 里启用第三方插件即可。它把博客 / 知识库 / 记忆 / 待办 / 日记聚合为一个首页视图，记忆库页签直接读取 `Memory/Todo.md`、`Inbox/` 待审核数与 `Projects/_index.md`。
-
 ## 规则体系怎么读
 
 ```text
@@ -100,4 +97,4 @@ Memory/rule/
 
 ## License
 
-[MIT](LICENSE) —— 结构、规则、脚本、插件均可自由取用；如果对你有帮助，欢迎 Star / 提 Issue 分享你的改造。
+[MIT](LICENSE) —— 结构、规则、脚本均可自由取用；如果对你有帮助，欢迎 Star / 提 Issue 分享你的改造。
