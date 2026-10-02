@@ -1,6 +1,6 @@
 # AI Memory Vault · クロスツール AI 記憶ライブラリ
 
-[English](README.en.md) | [简体中文](README.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Русский](README.ru.md)
+[English](../README.md) | [简体中文](zh-CN.md) | [日本語](ja.md) | [한국어](ko.md) | [Español](es.md) | [Português](pt-BR.md) | [Русский](ru.md)
 
 > Claude Code / Codex / Cursor / Cline / Gemini CLI / Trae / Qoder / ZCode など、**すべての AI ツールで同じ記憶を共有**するためのディレクトリ構造 + ルール + ゲートスクリプト。
 > **中核概念：ほぼゼロ設定——ローカルには何もデプロイしない。** 中身は Markdown ファイルと標準ライブラリだけで動く Python スクリプト 4 本。純粋な Markdown ディレクトリにコピーするだけで「デプロイ」完了。依存・サービス・ビルド・プレースホルダ置換は一切なし。ツールはワークスペース直下の `AGENTS.md` を自動で読み、スクリプトは記憶庫の場所を自動検出します。
@@ -11,9 +11,9 @@
 
 | ディレクトリ | 内容 |
 |---|---|
-| [docs/](docs/) | **設計思想**：なぜこう設計したか、全ゲートの背後にある実事故（中国語） |
-| [starter/](starter/) | **コピーしてすぐ使える骨格**：ディレクトリ構造 + ルール一式 + サンプルプロジェクト |
-| [scripts/](scripts/) | **ゲートスクリプト**：インデックス生成 / ToDo 監査 / エンコーディング検査 / 指令同期 |
+| [docs/](../docs/) | **設計思想**：なぜこう設計したか、全ゲートの背後にある実事故（中国語） |
+| [starter/](../starter/) | **コピーしてすぐ使える骨格**：ディレクトリ構造 + ルール一式 + サンプルプロジェクト |
+| [scripts/](../scripts/) | **ゲートスクリプト**：インデックス生成 / ToDo 監査 / エンコーディング検査 / 指令同期 |
 
 ## 核心理念（七か条・要約）
 
@@ -22,7 +22,7 @@
 3. **構造化された階層** — `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects` ＋ `Todo.md`・`Inbox/`・`Archive/`。
 4. **インデックスは派生物** — frontmatter から `mem_index.py` が生成。人は一行紹介を磨くだけで、再生成しても消えない。
 5. **完了 = 移動** — 終わった ToDo は `working/completed.md` へ移し、Todo からは削除。その場で ✅ を付けない。
-6. **ゲートのある工程だけ劣化しない** — 全ゲートには実事故の背書があります（[docs/04](docs/04-演化史-门禁背后的事故.md)）。
+6. **ゲートのある工程だけ劣化しない** — 全ゲートには実事故の背書があります（[docs/04](../docs/04-演化史-门禁背后的事故.md)）。
 7. **プライバシーはガードで守る** — `.gitignore` ＋ `pre-commit` フックが `Memory/` 触りのコミットを拒否。
 
 ## 一言デプロイ
@@ -64,8 +64,8 @@ python scripts/encoding_guard.py <path>  # エンコーディング + 制御文�
 | `encoding_guard.py` | 非 UTF-8 / BOM・AI のエスケープ食いによる裸制御文字（grep から見えなくなる地雷） |
 | `sync_memory_instructions.py` | ツール指令位と単一真源の漂移・真源の制御文字汚染 |
 
-> 詳細ドキュメント（設計思想・構造・原則・進化史）は[中国語版 README](README.md) と [docs/](docs/) を参照してください。**翻訳が最新でない場合は中国語版が正本です。**
+> 詳細ドキュメント（設計思想・構造・原則・進化史）は [docs/](../docs/)（中国語）に、全体の概要は[英語版 README](../README.md) にあります。**この翻訳が遅れている場合は英語版と中国語 docs が権威です。**
 
 ## License
 
-[MIT](LICENSE) — 構造・ルール・スクリプトは自由にご利用ください。役に立ったら Star や Issue であなたの改造を共有してもらえると嬉しいです。
+[MIT](../LICENSE) — 構造・ルール・スクリプトは自由にご利用ください。役に立ったら Star や Issue であなたの改造を共有してもらえると嬉しいです。

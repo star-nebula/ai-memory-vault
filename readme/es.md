@@ -1,6 +1,6 @@
 # AI Memory Vault · Bóveda de memoria multi-herramienta para IA
 
-[English](README.en.md) | [简体中文](README.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Русский](README.ru.md)
+[English](../README.md) | [简体中文](zh-CN.md) | [日本語](ja.md) | [한국어](ko.md) | [Español](es.md) | [Português](pt-BR.md) | [Русский](ru.md)
 
 > Una estructura de directorios + reglamento + scripts de control para que **todas las herramientas de IA** — Claude Code, Codex, Cursor, Cline, Gemini CLI, Trae, Qoder, ZCode y más — compartan **una sola memoria**.
 > **Filosofía central: casi cero configuración — no se despliega nada en local.** Todo el sistema son archivos Markdown más cuatro scripts de Python de solo librería estándar: copiarlo en un directorio Markdown plano *es* el despliegue. Sin dependencias, sin servicios, sin builds, sin placeholders que reemplazar. Las herramientas leen automáticamente el `AGENTS.md` raíz y empiezan a trabajar; los scripts detectan la ubicación de la memoria por sí solos.
@@ -11,9 +11,9 @@
 
 | Directorio | Qué es |
 |---|---|
-| [docs/](docs/) | **Fundamentos de diseño**: por qué está construido así, los incidentes reales tras cada control (chino) |
-| [starter/](starter/) | **Esqueleto copiar-y-usar**: estructura + reglamento completo + proyecto de ejemplo |
-| [scripts/](scripts/) | **Scripts de control**: índices, auditoría de tareas, guardián de codificación, sincronización de instrucciones |
+| [docs/](../docs/) | **Fundamentos de diseño**: por qué está construido así, los incidentes reales tras cada control (chino) |
+| [starter/](../starter/) | **Esqueleto copiar-y-usar**: estructura + reglamento completo + proyecto de ejemplo |
+| [scripts/](../scripts/) | **Scripts de control**: índices, auditoría de tareas, guardián de codificación, sincronización de instrucciones |
 
 ## Principios centrales (resumen de siete)
 
@@ -22,7 +22,7 @@
 3. **Capas estructuradas** — `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects` + `Todo.md`·`Inbox/`·`Archive/`.
 4. **Los índices son derivados** — los genera `mem_index.py` desde el frontmatter; el humano solo pule la línea-resumen y los re-generados no la borran.
 5. **Hecho = movido** — la tarea terminada pasa a `working/completed.md` (con fecha) y se elimina de `Todo.md`; nunca un ✅ en el sitio.
-6. **Solo los pasos con puerta de control se mantienen estables** — cada puerta nació de un incidente real ([docs/04](docs/04-演化史-门禁背后的事故.md)).
+6. **Solo los pasos con puerta de control se mantienen estables** — cada puerta nació de un incidente real ([docs/04](../docs/04-演化史-门禁背后的事故.md)).
 7. **Privacidad garantizada por guardas** — `.gitignore` + hook `pre-commit` que rechaza cualquier commit que toque `Memory/`.
 
 ## Despliegue en una frase
@@ -64,8 +64,8 @@ python scripts/encoding_guard.py <ruta>  # puerta: codificación + caracteres de
 | `encoding_guard.py` | No UTF-8 / BOM · caracteres de control dejados por escapes tragados por la IA (invisibles para grep) |
 | `sync_memory_instructions.py` | Deriva entre el slot de instrucciones de cada herramienta y la fuente única · contaminación de la fuente |
 
-> La documentación completa (filosofía, estructura, principios, historia de incidentes) está en el [README en chino](README.md) y en [docs/](docs/). **Si esta traducción se queda atrás, la versión china manda.**
+> La documentación completa (filosofía, estructura, principios, historia de incidentes) está en [docs/](../docs/) (en chino); el panorama general, en el [README en inglés](../README.md). **Si esta traducción se queda atrás, mandan el README en inglés y los docs en chino.**
 
 ## License
 
-[MIT](LICENSE) — estructura, reglas y scripts de uso libre. Si te sirve, un Star o un Issue con tu adaptación son bienvenidos.
+[MIT](../LICENSE) — estructura, reglas y scripts de uso libre. Si te sirve, un Star o un Issue con tu adaptación son bienvenidos.
