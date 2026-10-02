@@ -44,13 +44,14 @@ from pathlib import Path
 # 配置区（接入时改这里；路径支持 ~ 展开）
 # ===========================================================================
 
-# 各 AI 工具的用户级指令位。不用的注释掉，新工具照格式加一行。
+# 各 AI 工具的用户级指令位。**默认不配置任何目标**——clone 后直接跑不会碰你的工具位；
+# 要启用分发时，按你实际安装的工具解开注释（路径支持 ~ 展开），不用的删掉。
 TARGETS = [
-    {"label": "ZCode",       "kind": "file", "path": "~/.zcode/AGENTS.md"},
-    {"label": "Codex CLI",   "kind": "file", "path": "~/.codex/AGENTS.md"},
-    {"label": "Claude Code", "kind": "file", "path": "~/.claude/CLAUDE.md"},
-    {"label": "Qoder",       "kind": "file", "path": "~/.qoder/AGENTS.md"},
-    {"label": "Trae",        "kind": "file", "path": "~/.trae-cn/user_rules/rule-memory-library.md"},
+    # {"label": "ZCode",       "kind": "file", "path": "~/.zcode/AGENTS.md"},
+    # {"label": "Codex CLI",   "kind": "file", "path": "~/.codex/AGENTS.md"},
+    # {"label": "Claude Code", "kind": "file", "path": "~/.claude/CLAUDE.md"},
+    # {"label": "Qoder",       "kind": "file", "path": "~/.qoder/AGENTS.md"},
+    # {"label": "Trae",        "kind": "file", "path": "~/.trae-cn/user_rules/rule-memory-library.md"},
     # kind=json-inject：把真源正文写进 JSON 配置的指定键（改完需重启该工具才生效）
     # {"label": "WorkBuddy", "kind": "json-inject", "path": "~/.workbuddy/app/app-config.json",
     #  "keys": ["personalization", "customPrompt"],
@@ -58,7 +59,8 @@ TARGETS = [
 ]
 
 # 项目级钩子（--projects）：代码项目根目录。也可用环境变量 AI_PROJECT_ROOT 覆盖。
-CODE_ROOT = os.environ.get("AI_PROJECT_ROOT", r"D:\Projects")
+# 可选功能：留空则 --projects 直接跳过并提示，不影响用户级部署。
+CODE_ROOT = os.environ.get("AI_PROJECT_ROOT", "")
 HOOK_NAME = "AGENTS.md"
 
 # 项目根扫描的噪声目录与深度窗（`<根>\<组>\<项目>` 深度 2~3；分组目录会被深度门挡掉）
@@ -229,6 +231,9 @@ def check(text):
         log("[FATAL] 真源含裸控制符 %s —— 多半是 `\\v`/`\\f` 被当转义吃掉，先修真源" % ctrl)
         return 1
     log("[OK]   真源无裸控制符")
+    if not TARGETS:
+        log("[SKIP] 未配置部署目标（TARGETS 为空）——已做真源体检，跳过逐位比对")
+        return 0
     drift = []
     for t, target in iter_targets():
         if t["kind"] == "json-inject":
@@ -373,6 +378,9 @@ def hook_text(project, body):
 
 
 def deploy_projects(check_only):
+    if not CODE_ROOT:
+        log("[SKIP] --projects：未配置代码项目根（脚本顶部 CODE_ROOT 或环境变量 AI_PROJECT_ROOT），跳过项目级钩子")
+        return 0
     body = minimal_body()
     if not body:
         log("[FATAL] 取不到手册 §二「最小版」正文（%s）——钩子无正文可派生，拒绝部署" % MANUAL)
@@ -447,6 +455,9 @@ def main():
 
     log("=== 记忆库指令同步 ===")
     log("真源: %s (%d 字符)" % (CANON, len(text)))
+    if not TARGETS:
+        log("[SKIP] 未配置部署目标（TARGETS 为空）——本脚本只做真源体检；要启用分发请按脚本顶部注释配置")
+        return 0
     for t, target in iter_targets():
         if t["kind"] == "json-inject":
             deploy_json_inject(target, t["keys"], t.get("restart_hint", ""), text)

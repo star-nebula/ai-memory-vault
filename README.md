@@ -1,6 +1,7 @@
 # AI Memory Vault · 基于 Obsidian 的跨工具 AI 记忆库
 
-> 一套让 Claude Code / Codex / Cursor / Cline / Gemini CLI / Trae / Qoder / ZCode 等**所有 AI 工具共享同一份记忆**的目录结构 + 规则 + 门禁脚本。全部结构、规则、脚本来自作者日常在用的私有配置，本文档即"把方法论开源"。
+> 一套让 Claude Code / Codex / Cursor / Cline / Gemini CLI / Trae / Qoder / ZCode 等**所有 AI 工具共享同一份记忆**的目录结构 + 规则 + 门禁脚本。
+> **核心理念：几乎零配置成本——本地不部署任何配置。** 全部内容就是 Markdown 文件加四个仅标准库的 Python 脚本：拷进 Obsidian 库即完成"部署"，无依赖、无服务、无构建、无占位符替换；工具进入工作区自动读到根 `AGENTS.md` 即开始工作，脚本自动探测记忆库位置。
 
 **为什么需要它**：每个 AI 工具都有自己的"记忆"落点——`~/.claude/`、`~/.codex/`、`.workbuddy/memory/`、各家 auto-memory……工具各记各的，换一个工具就失忆，记忆内容混在工具配置里既不可读也不可审。本方案把**记忆的唯一落点收敛到一个 Obsidian 库**（Markdown + wiki 链接 + 本地文件，任何工具都能读写），工具侧只留一个"指针 + 铁律短钩子"。
 
@@ -12,14 +13,15 @@
 | [starter/](starter/) | **可整体拷走的骨架**：目录结构 + 全套规则 + 示例项目（脱敏后的正本） |
 | [scripts/](scripts/) | **门禁脚本**：索引生成、待办审计、编码守卫、指令分发同步 |
 
-## 核心理念（六条）
+## 核心理念（七条）
 
-1. **记忆唯一落点**。所有跨会话信息只写进 Obsidian 库；禁止写入任何工具私有记忆位（`.workbuddy/memory/`、`~/.claude/`、auto-memory 等）。工具的"自定义指令 / AGENTS.md / 规则文件"里只放**指向记忆库的指针 + 铁律短钩子**——那里不是记忆的仓库，是记忆库的门牌。
-2. **结构化分层**。记忆不是一锅笔记，是六个层：`Preferences`（偏好）/ `Plans`（规划）/ `Decisions`（决策）/ `Lessons`（踩坑）/ `Workflows`（流程）/ `Projects/<项目名>/`（项目记忆），外加全局待办 `Todo.md`、写入登记簿 `Inbox/`、季度归档 `Archive/`。
-3. **索引是派生物**。手工维护的大索引必然漂移（作者实测落后实盘 4~5 条）。各层 `_index.md` 一律由 `mem_index.py` 从笔记 frontmatter 生成，人工只润色"一句话定位"，脚本重跑不覆盖。
-4. **完成 = 移走，不是标注**。待办完成时把条目追加到 `Projects/<项目名>/working/completed.md` 并**从 Todo 删除**，而不是打个 ✅ 留在原地——"完成信号残留"由 `todo_audit.py` 门禁拦截。
-5. **有门禁的环节才不漂移**。纯靠"记得同步"的约定已被反复证伪。本库的每个门禁都对应一次真实事故：索引漂移、假成功入库、半部署、编码腐蚀、Todo 假声明……见 [docs/04-演化史.md](docs/04-演化史-门禁背后的事故.md)。
-6. **隐私边界硬编码**。记忆库整体被 `.gitignore` 排除出公开仓库，父仓 `pre-commit` 钩子**拒绝任何触碰它的提交**——防私密笔记被误推上 GitHub，不靠自觉靠守卫。
+1. **几乎零配置**：整个体系 = Markdown 文件 + 仅标准库的脚本。不部署服务、不装依赖、不写配置文件；入口靠工具自动读取工作区根 `AGENTS.md`，脚本靠向上探测找到 `Memory/`——拷进去就算装完了。规则文本用相对路径表述，唯一可能的一次性配置（用户级全局指令的绝对路径）也是可选的。
+2. **记忆唯一落点**。所有跨会话信息只写进 Obsidian 库；禁止写入任何工具私有记忆位（`.workbuddy/memory/`、`~/.claude/`、auto-memory 等）。工具的"自定义指令 / AGENTS.md / 规则文件"里只放**指向记忆库的指针 + 铁律短钩子**——那里不是记忆的仓库，是记忆库的门牌。
+3. **结构化分层**。记忆不是一锅笔记，是六个层：`Preferences`（偏好）/ `Plans`（规划）/ `Decisions`（决策）/ `Lessons`（踩坑）/ `Workflows`（流程）/ `Projects/<项目名>/`（项目记忆），外加全局待办 `Todo.md`、写入登记簿 `Inbox/`、季度归档 `Archive/`。
+4. **索引是派生物**。手工维护的大索引必然漂移（作者实测落后实盘 4~5 条）。各层 `_index.md` 一律由 `mem_index.py` 从笔记 frontmatter 生成，人工只润色"一句话定位"，脚本重跑不覆盖。
+5. **完成 = 移走，不是标注**。待办完成时把条目追加到 `Projects/<项目名>/working/completed.md` 并**从 Todo 删除**，而不是打个 ✅ 留在原地——"完成信号残留"由 `todo_audit.py` 门禁拦截。
+6. **有门禁的环节才不漂移**。纯靠"记得同步"的约定已被反复证伪。本库的每个门禁都对应一次真实事故：索引漂移、假成功入库、半部署、编码腐蚀、Todo 假声明……见 [docs/04-演化史.md](docs/04-演化史-门禁背后的事故.md)。
+7. **隐私边界硬编码**。记忆库整体被 `.gitignore` 排除出公开仓库，父仓 `pre-commit` 钩子**拒绝任何触碰它的提交**——防私密笔记被误推上 GitHub，不靠自觉靠守卫。
 
 ## 目录结构一览
 
@@ -43,25 +45,26 @@ vault/                        ← 你的 Obsidian 库根
     └── Archive/              ← 季度归档
 ```
 
-## 快速开始
+## 快速开始（拷进去就能用）
 
 ```bash
-# 1. 把骨架拷进你的 Obsidian 库（或任何你想放记忆库的地方）
+# 唯一的"安装"动作：把骨架拷进你的 Obsidian 库根（或任何你想放记忆库的目录）
 cp -r starter/* /path/to/your-vault/
+```
 
-# 2. 全局搜索 "<你的记忆库路径>" 占位符，替换为实际路径
-#    涉及：starter/AGENTS.md、Memory/AGENTS.md、Memory/rule/*、Workflows 两个文件
+没有占位符要替换、没有依赖要安装、没有服务要部署——到这里记忆库已经可用了。AI 工具进入工作区会自动读到根 `AGENTS.md`，按 `Memory/_index.md` 的路由开始读写记忆。
 
-# 3. 生成各层索引（派生物，之后新增笔记重跑即可）
+两个**可选**动作（不改也不影响运行）：
+
+```bash
+# 生成各层索引（派生物；之后新增笔记重跑即可，人工只润色"一句话定位"）
 python scripts/mem_index.py --write
-
-# 4. 装上门禁（建议挂进会话收尾 / CI）
 python scripts/mem_index.py --check     # 索引漂移门禁
 python scripts/todo_audit.py --check    # 待办归档门禁
 python scripts/encoding_guard.py <路径>  # 编码 + 裸控制符门禁
 ```
 
-**接入各 AI 工具**：见 `starter/Memory/Workflows/AI工具自定义指令.md`——完整版（贴进自定义指令框）与最小版（放进项目根 `AGENTS.md`）两套现成文案，覆盖 WorkBuddy / ZCode / Trae / Qoder / Claude Code / Codex / Cursor / Copilot / Cline 等常见落点；改完真源用 `scripts/sync_memory_instructions.py` 一键分发到多个工具的用户级指令位。
+**接入各 AI 工具**：见 `starter/Memory/Workflows/AI工具自定义指令.md`——完整版（贴进自定义指令框）与最小版（放进项目根 `AGENTS.md`）两套现成文案，覆盖 WorkBuddy / ZCode / Trae / Qoder / Claude Code / Codex / Cursor / Copilot / Cline 等常见落点。文案默认相对路径、即贴即用；若要把记忆库挂成**用户级全局指令**（跨工作区），才需要把首句替换成一次绝对路径，并用 `scripts/sync_memory_instructions.py` 一键分发到多个工具。
 
 ## 规则体系怎么读
 

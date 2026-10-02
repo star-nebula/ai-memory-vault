@@ -13,5 +13,5 @@ tags: [索引, AI入口, workflows]
 
 | 路径 | 一句话定位 | 关键词 | 更新 |
 |---|---|---|---|
-| `Workflows/AI工具自定义指令-完整版.md` | 记忆唯一存储地：Obsidian 记忆库 <VAULT>\Memory。 | — | 2026-10-02 |
+| `Workflows/AI工具自定义指令-完整版.md` | 记忆唯一存储地：Obsidian 记忆库——当前工作区根目录下的 Memory/。 | — | 2026-10-02 |
 | `Workflows/AI工具自定义指令.md` | python scripts\sync_memory_instructions.py（部署前先在脚本顶部配置你的工具位路径… | 分发钩子, 自定义指令, 记忆库, AI工具接入 | 2026-10-02 |

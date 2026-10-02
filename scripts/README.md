@@ -61,7 +61,7 @@ python sync_memory_instructions.py --projects   # 部署项目级钩子（只新
 ```
 
 - 真源 = `Memory/Workflows/AI工具自定义指令-完整版.md`（唯一可编辑来源）
-- **部署目标在脚本顶部 `TARGETS` 配置**（支持 `~` 展开；`file` 软链退化复制 / `json-inject` 注入 JSON 键两种形态）
+- **部署目标在脚本顶部 `TARGETS` 配置，默认全注释——clone 后直接跑不会碰你的工具位**；启用分发时解开你要的工具（支持 `~` 展开；`file` 软链退化复制 / `json-inject` 注入 JSON 键两种形态），未安装的工具自动 SKIP
 - **先 `--check` 再部署**：定位类脚本的输出面是别人的配置文件，写下去就不是本地可逆动作
 - 项目级钩子含真实路径 → **只留本地**，所在 git 仓用 `.git/info/exclude` 忽略（不要写 `.gitignore`——提交它就会把钩子文件名披露给远端）
 

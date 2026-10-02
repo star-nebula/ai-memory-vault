@@ -1,28 +1,28 @@
 # starter —— 可整体拷走的记忆库骨架
 
-本目录是整套体系的**最小可运行形态**：把里面的内容拷进你的 Obsidian 库根，替换占位符，跑一次索引生成，记忆库即上线。
+本目录是整套体系的**最小可运行形态**：把里面的内容拷进你的 Obsidian 库根，记忆库即上线——没有占位符替换、没有依赖安装、没有服务部署。
 
-## 拷贝
+## 拷贝（唯一的"安装"动作）
 
 ```bash
-# 把本目录内容拷进你的 Obsidian 库根（AGENTS.md / Templates/ / Memory/）
 cp -r starter/* /path/to/your-vault/
 ```
 
-## 上线四步
+拷完即用：AI 工具进入工作区自动读到根 `AGENTS.md`，按 `Memory/_index.md` 路由读写记忆。规则文本全部按**相对路径**表述，不需要改任何一行。
 
-1. **替换占位符**：全局搜索 `<VAULT>`（替换为你的库根绝对路径）与 `<项目区>`（替换为你的代码项目根目录）。涉及：`AGENTS.md`、`Memory/AGENTS.md`、`Memory/rule/` 四件、`Memory/Workflows/` 两个文件。
-2. **生成索引**：`python scripts/mem_index.py --write`——各层 `_index.md` 是派生物，以后新增笔记重跑即可，手工只润色"一句话定位"。
-3. **接入 AI 工具**：把 `Memory/Workflows/AI工具自定义指令-完整版.md`（完整版）或 `AGENTS.md`（最小版，会自动读项目根 `AGENTS.md` 的工具适用）按 `Memory/Workflows/AI工具自定义指令.md` 的落点对照表分发到你的各工具。
-4. **挂上门禁**：把会话收尾 checklist（`Memory/rule/收尾与维护.md`）交给你的 AI 工具执行，季度跑一次全部门禁（见 scripts/README.md）。
+## 两个可选动作（不改也不影响运行）
+
+1. **生成各层索引**（派生物）：`python scripts/mem_index.py --write`——之后新增笔记重跑即可，手工只润色"一句话定位"。
+2. **接入 AI 工具的用户级全局指令**：把 `Memory/Workflows/AI工具自定义指令-完整版.md` 按 `Memory/Workflows/AI工具自定义指令.md` 的落点对照表分发到你的各工具。默认文案相对路径、即贴即用；仅当需要跨工作区全局访问时，才把真源首句替换为一次记忆库绝对路径，再用 `scripts/sync_memory_instructions.py` 一键分发。
 
 ## 自检
 
 ```bash
-export AI_MEMORY_DIR=/path/to/your-vault/Memory    # 或在库根直接运行（脚本自动探测 ./Memory）
 python scripts/mem_index.py --check     # 应输出 OK：无漂移
 python scripts/todo_audit.py --check    # 应输出 [ok] 干净
 ```
+
+脚本自动探测记忆库位置（从当前目录向上找 `Memory/`）；在任何位置运行时也可 `export AI_MEMORY_DIR=/path/to/your-vault/Memory` 显式指定。
 
 ## 示例项目
 
