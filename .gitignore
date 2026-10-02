@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+
+# 脚本报告输出目录（todo_audit / mem_index 等的实测报告）
+scripts/_out/
+*_out/
+
+# 备份与临时文件
+*.bak
+*.tmp
+_tmp*
+.temp
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Obsidian（如果有人把整个仓库当 vault 打开）
+.obsidian/
+.trash/

@@ -1,0 +1,9 @@
+{
+  "id": "knowledge-workspace",
+  "name": "知识工作台",
+  "version": "1.13.2",
+  "minAppVersion": "1.4.0",
+  "description": "博客 · 知识库 · 记忆 三层结构的个人工作台首页，运行时实时扫描 vault 真实数据。",
+  "author": "stars",
+  "isDesktopOnly": false
+}
