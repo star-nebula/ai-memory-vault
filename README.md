@@ -1,5 +1,7 @@
 # AI Memory Vault · 跨工具 AI 记忆库
 
+[English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Русский](README.ru.md)
+
 > 一套让 Claude Code / Codex / Cursor / Cline / Gemini CLI / Trae / Qoder / ZCode 等**所有 AI 工具共享同一份记忆**的目录结构 + 规则 + 门禁脚本。
 > **核心理念：几乎零配置成本——本地不部署任何配置。** 全部内容就是 Markdown 文件加四个仅标准库的 Python 脚本：拷进一个纯 Markdown 目录即完成"部署"，无依赖、无服务、无构建、无占位符替换；工具进入工作区自动读到根 `AGENTS.md` 即开始工作，脚本自动探测记忆库位置。
 >
