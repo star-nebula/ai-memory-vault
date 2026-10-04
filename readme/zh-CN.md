@@ -17,6 +17,14 @@
 | [starter/](../starter/) | **可整体拷走的骨架**：目录结构 + 全套规则 + 示例项目（脱敏后的正本） |
 | [scripts/](../scripts/) | **门禁脚本**：索引生成、待办审计、编码守卫、指令分发同步 |
 
+## 演示
+
+把记忆库自己的工作流画成**活的运行面板**：版面固定，连线上光点流动，门禁脚本转圈，告警依次点亮——任何一帧都是完整可读的图（数字均为示意）：
+
+![AI Memory Vault 运行面板](docs/media/memory-vault-panel.mp4)
+
+*由 `live-diagram` skill 渲染；面板自身的记忆就按本系统管理，真实示例见 [`starter/Memory/Projects/live-diagram/`](starter/Memory/Projects/live-diagram/)。*
+
 ## 核心理念（七条）
 
 1. **几乎零配置**：整个体系 = Markdown 文件 + 仅标准库的脚本。不部署服务、不装依赖、不写配置文件；入口靠工具自动读取工作区根 `AGENTS.md`，脚本靠向上探测找到 `Memory/`——拷进去就算装完了。规则文本用相对路径表述，唯一可能的一次性配置（用户级全局指令的绝对路径）也是可选的。

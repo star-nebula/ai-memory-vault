@@ -17,6 +17,14 @@ Over three weeks of daily use this system grew four gate scripts and a four-part
 | [starter/](starter/) | **Copy-and-go skeleton**: directory layout + full rulebook + sample project |
 | [scripts/](scripts/) | **Gate scripts**: index builder, todo auditor, encoding guard, instruction sync |
 
+## Demo
+
+The vault's own workflow, drawn as a **live panel**: fixed layout, packets flowing on the wires, gate scripts spinning, alarms lighting up in turn — every frame is a complete, readable diagram (the numbers are illustrative):
+
+![AI Memory Vault live panel](docs/media/memory-vault-panel.mp4)
+
+*Rendered with the `live-diagram` skill; the panel's own memory is managed in this system as a real example — see [`starter/Memory/Projects/live-diagram/`](starter/Memory/Projects/live-diagram/).*
+
 ## Core principles (seven)
 
 1. **Near-zero configuration**. The whole system = Markdown files + stdlib-only scripts. No services, no dependencies, no config files; the entry point is your tool auto-reading the root `AGENTS.md`, and scripts find `Memory/` by walking up the tree — copying it in *is* the install.
