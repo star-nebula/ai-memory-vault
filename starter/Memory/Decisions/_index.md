@@ -7,7 +7,7 @@
 
 ## 架构（[架构]）
 
-（暂无——新增决策时按上行格式补一行）
+- [2026-10-04] [架构] live-panel-skill 重写为自有 skill live-diagram → 核心理念保留（seek(t) 确定性/状态机产日志/帧检查），实现全自研：stdlib WebSocket 驱动 Chrome（替代 POSIX fd 管道，Windows 原生可用）、render/check/build 单 CLI、5 种画幅 | 原脚本 Windows 跑不起来（sh -c 传 fd）；备选与论证见详笔记 | via:ZCode 会话 10-04（[[Decisions/live-diagram重写为自有skill与跨平台驱动]]）
 
 ## 工具（[工具]）
 
