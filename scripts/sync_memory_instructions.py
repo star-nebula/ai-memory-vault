@@ -33,7 +33,7 @@ sync_memory_instructions.py — 记忆库自定义指令「单一真源」同步
 
 声明位伪值门：五个入口文件（真源 / 分发手册 / `Memory/AGENTS.md` / `Memory/Rule.md` / 工作区根 `AGENTS.md`）
 里「当前项目名」后面不得出现 `<项目名>`。项目名只有运行时才知道，写死占位等于给 AI 一个假值；
-合法形态 = 指向 `Memory/_index.md` §七 的指针。`Projects/<项目名>/...` 这类路径模式不受影响。
+合法形态 = 由 `memory_boot.py` / `memory_query.py` 在运行时判定。`Projects/<项目名>/...` 这类路径模式不受影响。
 """
 import io
 import json
@@ -237,8 +237,7 @@ def check_decls():
     """声明位伪值检查：返回命中条数（0 = 干净）。
 
     「当前项目名：<项目名>」把只有运行时才知道的值写成了字面占位符，分发到各工具位后会被
-    读成空，于是「完成 = 移走」的目标目录当场不可解析。合法形态 = 指向 `Memory/_index.md` §七 的
-    指针；`Projects/<项目名>/...` 这类**路径模式**不带「当前项目名」前缀，不受本检查影响。
+    读成空，于是「完成 = 移走」的目标目录当场不可解析。合法形态 = 由 `memory_boot.py` / `memory_query.py` 在运行时判定；
     """
     hits = []
     for path in DECL_FILES:
@@ -248,7 +247,7 @@ def check_decls():
         t = path.read_text(encoding="utf-8", errors="replace")
         for i, line in enumerate(t.splitlines(), 1):
             if PSEUDO_DECL.search(line):
-                hits.append("[声明位伪值] %s:%d 「当前项目名」带着 <项目名>，改为指 `_index.md` §七"
+                hits.append("[声明位伪值] %s:%d 「当前项目名」带着 <项目名>，改为由运行时判定"
                             % (path.name, i))
     for h in hits:
         log(h)
@@ -265,7 +264,7 @@ def check(text):
     log("[OK]   真源无裸控制符")
     n = check_decls()
     if n:
-        log("[FATAL] 声明位伪值 %d 处 —— 项目名只能由运行时给出（判定三步见 `Memory/_index.md` §七）" % n)
+        log("[FATAL] 声明位伪值 %d 处 —— 项目名只能由运行时给出（由 `memory_boot.py` / `memory_query.py` 判定）" % n)
         return 1
     log("[声明位] %d 个入口文件（真源/手册/钩子/权威全文/工作区根）均无「当前项目名：<占位>」伪值" % len(DECL_FILES))
     if not TARGETS:
@@ -405,11 +404,12 @@ def hook_text(project, body):
         "",
         "## 本项目记忆怎么读",
         "",
-        "- 项目档案：`%s\\%s\\_overview.md`（`working\\` 下是台账与流水）" % (MEMORY_ROOT, ov),
-        "- 跨层笔记（`Decisions\\` `Lessons\\` `Plans\\` `Preferences\\` `Workflows\\`）平铺在共享层，",
-        "  本项目相关的那批只靠 frontmatter 标记：反查 `scope: %s` 与 `scope: global`" % project,
-        "- 待办在 `Memory\\Todo.md` 的 `## %s` 分组；完成 = 移走（追加到 `working\\completed.md` 并从 Todo 删除）" % project,
-        "- 上面这个分组不存在时**别静默**：先 grep scope，再问用户是否为本项目建档",
+        "- 启动：`python scripts/memory_boot.py --cwd <项目根>`；只加载热层、本项目 overview/state 与 Todo 切片。",
+        "- 按需查历史/原因/踩坑：`python scripts/memory_query.py \"关键词\" --project %s`。" % project,
+        "- 不读 `_index.md` 或各层 `_index.md`；它们是校验用派生物。",
+        "- 项目档案：`%s\\%s\\_overview.md`；当前状态：`_state.md`。" % (MEMORY_ROOT, ov),
+        "- 跨层笔记（`Decisions\\` `Lessons\\` `Plans\\` `Preferences\\` `Workflows\\`）按 `scope` 检索，不按目录通读。",
+        "- Todo 分组不存在时**别静默**：先检索 scope，再问用户是否为本项目建档。",
         "",
     ])
 

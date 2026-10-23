@@ -3,19 +3,20 @@
 [简体中文](readme/zh-CN.md) | [日本語](readme/ja.md) | [한국어](readme/ko.md) | [Español](readme/es.md) | [Português](readme/pt-BR.md) | [Русский](readme/ru.md)
 
 > A directory structure + rulebook + gate scripts that let **every AI tool** — Claude Code, Codex, Cursor, Cline, Gemini CLI, Trae, Qoder, ZCode and more — share **one memory**.
-> **Core philosophy: near-zero configuration — deploy nothing locally.** The whole system is Markdown files plus four standard-library-only Python scripts: copying it into a plain Markdown directory *is* the deployment. No dependencies, no services, no builds, no placeholders to replace. Tools automatically read the root `AGENTS.md` and start working; scripts auto-detect the memory location.
+> **Core philosophy: near-zero configuration — deploy nothing locally.** The whole system is Markdown files plus standard-library-only Python scripts: copying it into a plain Markdown directory *is* the deployment. No dependencies, no services, no builds, no placeholders to replace. Tools automatically read the root `AGENTS.md` and start working; scripts auto-detect the memory location.
 >
 > **Not bound to Obsidian**: the memory vault is just a plain Markdown directory (`Memory/`). Any agent that can read/write files and any Markdown editor can use it. The author personally views it in Obsidian — Templater / Dataview are optional enhancements, not dependencies.
 
 **Why**: every AI tool keeps its own "memory" — `~/.claude/`, `~/.codex/`, `.workbuddy/memory/`, various forced auto-memories… Tools don't share; switching tools means amnesia; memories hidden in tool-private formats are neither readable nor auditable. This project converges the **single source of memory** into one plain Markdown directory that every tool can read and write. Tool-side configs only keep a *pointer + short hook* — they are the doorplate of the memory vault, not the vault itself.
 
-Over three weeks of daily use this system grew four gate scripts and a four-part rulebook. Contents:
+Over three weeks of daily use this system grew gate scripts, bounded retrieval commands, and a four-part rulebook. Contents:
 
 | Directory | What it is |
 |---|---|
 | [docs/](docs/) | **Design rationale**: why it's built this way, the real incidents behind every gate (Chinese) |
+| [docs/06-agent-first-p0验证.md](docs/06-agent-first-p0验证.md) | **P0 prototype**: Agent-first boot pack, bounded query, no index-at-boot |
 | [starter/](starter/) | **Copy-and-go skeleton**: directory layout + full rulebook + sample project |
-| [scripts/](scripts/) | **Gate scripts**: index builder, todo auditor, encoding guard, instruction sync |
+| [scripts/](scripts/) | **Agent commands + gates**: boot pack, bounded query, index builder, todo auditor, encoding guard, instruction sync |
 
 ## Demo
 
@@ -30,7 +31,7 @@ The vault's own workflow, drawn as a **live panel**: fixed layout, packets flowi
 1. **Near-zero configuration**. The whole system = Markdown files + stdlib-only scripts. No services, no dependencies, no config files; the entry point is your tool auto-reading the root `AGENTS.md`, and scripts find `Memory/` by walking up the tree — copying it in *is* the install.
 2. **One memory location**. All cross-session information lives in the Markdown vault; writing to any tool-private memory spot is forbidden (`.workbuddy/memory/`, `~/.claude/`, auto-memory…). Tool-side configs only keep a pointer + the iron-rule hook.
 3. **Structured layers**. Memory is not one pile of notes: `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects/<name>/`, plus global `Todo.md`, the write-ledger `Inbox/`, and quarterly `Archive/`.
-4. **Indexes are derived artifacts**. Hand-maintained indexes always drift (the author's once lagged 4–5 entries behind reality). Each content layer except `Decisions/` gets a generated `_index.md` from `mem_index.py`; humans only polish the one-line summaries, reruns never overwrite them. `Decisions/_index.md` stays manual because one row may cover several decisions.
+4. **Indexes are derived artifacts, not boot context**. Hand-maintained indexes always drift. Each content layer except `Decisions/` gets a generated `_index.md` from `mem_index.py`; the agent does not read those pages at session start. `memory_boot.py` builds the bounded hot/project pack, and `memory_query.py` performs bounded retrieval.
 5. **Closed = moved, not marked**. A finished or cancelled todo is appended to `Projects/<name>/working/completed.md` (with date, outcome, reason and source) and **deleted from Todo.md** — never a ✅ or a permanent strikethrough in place. The `todo_audit.py` gate blocks leftovers.
 6. **Only gated steps stay drift-free**. "Remember to sync" has been proven to fail repeatedly. Every gate in this repo was born from a real incident — see [docs/04](docs/04-演化史-门禁背后的事故.md).
 7. **Privacy boundaries enforced by guards**. The memory layer is `.gitignore`d out of public repos and a `pre-commit` hook **rejects any commit touching it** — don't rely on discipline, rely on guards.
@@ -43,12 +44,13 @@ your-vault/                   ← your notes repo / workspace root (a plain Mark
 ├── Templates/                ← note templates (Memory-Note / Memory-Inbox-Note)
 └── Memory/                   ← the memory vault itself (the single memory location)
     ├── AGENTS.md             ← iron rules + short hook (deployed into every tool's system prompt)
-    ├── _index.md             ← the single entry: AI routes from here, then reads by path
+    ├── BOOT.md               ← only always-on hot layer (small, stable facts)
+    ├── _index.md             ← generated catalog for gates/diagnostics; not read at boot
     ├── Rule.md               ← rulebook TOC: operation → section mapping
     ├── rule/                 ← four rule sections (write / wrap-up / sub-agents / vibe-coding)
     ├── Todo.md               ← global todos, grouped by project (no checkboxes)
     ├── Preferences/ Plans/ Decisions/ Lessons/ Workflows/
-    ├── Projects/<name>/      ← project memory: _overview.md + working/{journal,plan,completed}.md
+    ├── Projects/<name>/      ← _overview.md + _state.md + working/{journal,plan,completed}.md
     ├── Inbox/                ← write ledger: every AI write gets logged, then reviewed
     └── Archive/              ← quarterly archive
 ```
@@ -63,8 +65,8 @@ copy everything under starter/ into the root of my memory-vault workspace — if
 have a notes repo use its root, otherwise create an empty directory. Also copy the
 scripts/ directory into that workspace (the gates are not inside starter/).
 Then run python scripts/mem_index.py --write in that directory to build the indexes.
-Finally read the workspace-root AGENTS.md and Memory/_index.md, and tell me back:
-when you will read memory, and how you will write it.
+Run python scripts/memory_boot.py --project <name> --json and python scripts/memory_query.py "test" --json. Finally read the workspace-root AGENTS.md, and tell me back:
+when you will load memory, how you will query it, and how you will write it.
 ```
 
 ## Manual deployment (without an agent)

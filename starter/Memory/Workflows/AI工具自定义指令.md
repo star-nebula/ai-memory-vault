@@ -23,10 +23,12 @@ tags: [分发钩子, 自定义指令, 记忆库, AI工具接入]
 **适用**：会自动读取项目根 `AGENTS.md` 的工具——Claude Code、Codex CLI、Cursor、GitHub Copilot、OpenCode、Gemini CLI、Windsurf、Cline 等。它们进仓即可读到 `AGENTS.md`，结构类信息不必重复写。
 
 ```text
-记忆库规则见工作区根 `Memory/`：
-入口 `Memory/_index.md`（分层路由），权威规则 `Memory/Rule.md`，短版钩子 `Memory/AGENTS.md`。
-记忆唯一落点 = 工作区根下的 `Memory/`（Markdown 记忆库），禁写任何工具私有位（`.workbuddy/memory/`、`~/.claude/`、`~/.workbuddy/MEMORY.md` 等）。
-写入 / 收尾前先读 `Rule.md` 对应节并做 Inbox 登记。
+记忆库规则见工作区根 `Memory/`（Agent-first）。
+普通任务不默认扫描记忆；项目任务运行 `python scripts/memory_boot.py --cwd <项目根>`；
+查历史/原因/踩坑运行 `python scripts/memory_query.py "关键词" --cwd <项目根>`。
+不要读 `Memory/_index.md` 或各层 `_index.md` 作为启动上下文。
+写入 / 收尾前读 `Memory/Rule.md` 映射的分节，并在同日 `Memory/Inbox/` 登记。
+记忆唯一落点 = `Memory/`，禁写任何工具私有记忆位。
 ```
 
 ## 三、落点对照

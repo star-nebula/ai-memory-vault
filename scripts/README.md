@@ -1,8 +1,8 @@
 # scripts —— 门禁与运维脚本
 
-四个脚本全部**仅用 Python 标准库**（3.9+），无第三方依赖。
+六个脚本全部**仅用 Python 标准库**（3.9+），无第三方依赖。
 
-## 记忆库定位（三个入口脚本共用）
+## 记忆库定位（Agent 脚本与门禁共用）
 
 按序取：
 
@@ -11,6 +11,28 @@
 
 把脚本放在 vault 根或其子目录运行即可自动命中；也可以显式 `export AI_MEMORY_DIR=...` 后在任何位置运行。
 
+## `memory_boot.py` —— Agent 启动包
+
+```bash
+python memory_boot.py --cwd <项目根> --json
+python memory_boot.py --project <项目名> --budget 6000
+```
+
+- 普通任务不自动扫描记忆库；项目任务只生成一个小型启动包。
+- 输入固定：`BOOT.md` + 当前项目 `_overview.md` + `_state.md` + `Todo.md` 当前项目切片。
+- 不读取 `_index.md` 或各层 `_index.md`。
+- `--budget` 是硬上限；`--json` 返回 `chars`、`original_chars`、`truncated` 与实际读取的文件列表。
+
+## `memory_query.py` —— 有界检索
+
+```bash
+python memory_query.py "关键词" --cwd <项目根> --limit 5 --budget 5000
+python memory_query.py "旧方案" --include-inactive --include-history --json
+```
+
+- 默认只搜活跃笔记，排除 archived/superseded；`--include-inactive` 显式放开。
+- 默认跳过 `Inbox/`、`Archive/`、`working/`；查历史时加 `--include-history`。
+- 返回路径、类型、scope、status、更新日期和片段，不展开整篇笔记。
 ## `mem_index.py` —— 索引生成 / 校验（门禁 ①⑤）
 
 **除 `Decisions/` 外**各层 `_index.md` 的**派生器 + 门禁**。背景：手工索引必然漂移，索引必须是派生物；`Decisions/_index.md` 专用格式、人工维护，只可 `--check`。
@@ -35,7 +57,7 @@ python mem_index.py --write --refresh-cells   # 强制按实盘重算人工定�
 ```bash
 python todo_audit.py                 # 全量报告 → scripts/_out/todo_audit.txt
 python todo_audit.py --check         # 门禁：完成信号残留/分组名不映射/Todo 假声明/type 词表外取值 → 退出码 1
-python todo_audit.py --cost-check    # 门禁：开场三件套成本超标 → 退出码 1（季度维护用）
+python todo_audit.py --cost-check    # 门禁：Agent 启动成本超标 → 退出码 1（季度维护用）
 python todo_audit.py --scope-check   # 门禁：scope 非法取值/冗余出现 → 退出码 1（季度维护用）
 python todo_audit.py --inbox <目录> --audit-date YYYY-MM-DD   # 积压计数 fixture（日常不用）
 ```
@@ -67,7 +89,7 @@ python sync_memory_instructions.py --projects   # 部署项目级钩子（只新
 ```
 
 - 真源 = `Memory/Workflows/AI工具自定义指令-完整版.md`（唯一可编辑来源）
-- **声明位伪值门**：检查真源 / 分发手册 / `Memory/AGENTS.md` / `Memory/Rule.md` 里「当前项目名」后面不得出现 `<项目名>`；项目名只能由运行时按 `Memory/_index.md` §七 判定
+- **声明位伪值门**：检查真源 / 分发手册 / `Memory/AGENTS.md` / `Memory/Rule.md` 里「当前项目名」后面不得出现 `<项目名>`；项目名只能由 `memory_boot.py` / `memory_query.py` 在运行时判定
 - **部署目标在脚本顶部 `TARGETS` 配置，默认全注释——clone 后直接跑不会碰你的工具位**；启用分发时解开你要的工具（支持 `~` 展开；`file` 软链退化复制 / `json-inject` 注入 JSON 键两种形态），未安装的工具自动 SKIP
 - **先 `--check` 再部署**：定位类脚本的输出面是别人的配置文件，写下去就不是本地可逆动作
 - 项目级钩子含真实路径 → **只留本地**，所在 git 仓用 `.git/info/exclude` 忽略（不要写 `.gitignore`——提交它就会把钩子文件名披露给远端）

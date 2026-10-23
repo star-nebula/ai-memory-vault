@@ -12,7 +12,7 @@
     1. 完成信号残留 —— Todo 里带完成标记、但未移走的条目（违规）
     2. 分组名映射   —— `## 分组` 标题必须等于 `Projects/` 下的目录名（规则要求）
     3. completed.md —— 被 Todo 提到的项目是否已有 `working/completed.md`
-    4. 开场成本     —— 会话开场必读三件的实测体量与超标清单（2026-09-29 增，报告项）
+    4. Agent 启动成本 —— BOOT.md、项目 overview 与启动近似上限；实际包由 memory_boot.py 控制（报告项）
     5. scope 词表   —— 跨层归属字段的非法取值与冗余出现（2026-09-29 增，报告项；
                      合法值 = `global` ∪ `Projects/` 目录名，由实盘推导、脚本内不写死词表）
     6. Todo 声明核对 —— journal/plan 里「已并入 Todo」这类话**是否真有其条**
@@ -29,14 +29,12 @@
                      判据正本 = `Workflows/记忆库自动审核与人工入口.md`「审核范围」段；**只报不拦**。
 
 **为什么体量阈值写在脚本、不写进文档**：
-    `Memory/_index.md` §七 曾长期声称开场三件套「≈ 8 KB」。2026-09-29 实测：
-    `_index.md` 4708 + `Todo.md` 6623 字符，而 `Projects/某项目/_overview.md` 单件就
-    18072 字符—— 三件套最坏情形近 3 万字符，声称值失真约 4~8 倍。
-    数字是会变的实测值，写进规则文档就变成第二份事实源（本库对索引条数已有同款教训：
-    见 `_index.md` §二「条数不在此表维护」）。故：**阈值 = 本文件顶部常量（策略），
-    实测 = 本报告输出（事实）**，文档只指路不抄数。
+    Agent-first 启动不再把 `_index.md` 与整份 Todo 注入上下文，而是由 `memory_boot.py`
+    生成 `BOOT.md + 项目切片` 的有界包。本脚本只做存量扫描：BOOT 是否过大、overview
+    是否需要瘦身、启动近似上限是否失控。数字会变，写进规则文档就变成第二份事实源；
+    因而阈值在脚本常量，实测在报告，文档只指路。
 
-阈值分档（`--check` 把 1/2/6/8 当门禁；成本、`scope` 与暂存层体量走报告，避免历史欠账或改名当天把每次收尾都判红）：
+阈值分档（`--check` 把 1/2/6/8/9 当门禁；启动成本、`scope` 与暂存层体量走报告，避免历史欠账或改名当天把每次收尾都判红）：
     · 单文件超过 LIMIT_* 记「待瘦身」；`--cost-check` 才作硬门禁退出码 1。
     · 暂存层**判压面只收 journal**：超 LIMIT_STAGING_CHARS（**字符数**口径）记「待压缩」，**只报告不拦**；
       completed 属终态层，只进「最重几份」观测面。
@@ -56,7 +54,7 @@
 用法：
     python todo_audit.py                 # 全量报告 → _agent_scripts/_out/todo_audit.txt
     python todo_audit.py --check         # 门禁模式：完成信号残留 / 分组名不映射 / Todo 假声明 即退出码 1
-    python todo_audit.py --cost-check    # 门禁模式：开场成本超标即退出码 1（季度维护用）
+    python todo_audit.py --cost-check    # 门禁模式：Agent 启动成本超标即退出码 1（季度维护用）
     python todo_audit.py -o <文件>        # 指定输出
     python todo_audit.py --json           # 机器可读
     python todo_audit.py --todo <路径>    # 覆盖 Todo 路径
@@ -105,16 +103,18 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 MEMORY_DIR = _find_memory_dir()
 TODO_PATH = MEMORY_DIR / "Todo.md"
 INDEX_PATH = MEMORY_DIR / "_index.md"
+BOOT_PATH = MEMORY_DIR / "BOOT.md"
 PROJECTS_DIR = MEMORY_DIR / "Projects"
 DEFAULT_OUT = SCRIPT_DIR / "_out" / "todo_audit.txt"
 INBOX_DIR = MEMORY_DIR / "Inbox"          # 每日审核的现场（只读扫描，本脚本不写它）
 INBOX_DAY_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.md$")
 
-# —— 开场成本阈值（策略常量；改这里，不改文档）——
-LIMIT_INDEX = 5000      # _index.md：唯一入口，超了说明逐篇索引该下沉到各层
-LIMIT_TODO = 8000       # Todo.md：长条目细节应移 journal/plan，只留一行指针
+# —— Agent 启动成本阈值（策略常量；改这里，不改文档）——
+LIMIT_BOOT = 3000       # BOOT.md：唯一常驻热层，超了必须删除或下沉
+LIMIT_INDEX = 5000      # _index.md：生成/校验目录，不计入启动成本
+LIMIT_TODO = 8000       # Todo.md：源文件体量；启动只取当前项目切片
 LIMIT_OVERVIEW = 4000   # Projects/<名>/_overview.md：只留定位/关键路径/关联资产/状态
-LIMIT_TRIO_WORST = 12000  # 三件套最坏情形合计（入口 + Todo + 最大 overview）
+LIMIT_BOOT_APPROX = 6000  # 热层 + 最大 overview 的启动近似上限（实际切片由 memory_boot 控制）
 # 暂存层体量阈值（**字符数**）：超过即该把旧段压成「阶段小结」（只留结论 + wikilink）。
 # 原写死在 `rule/写入与禁止.md` 第 3 条与 `Todo.md` 正文里（同一事实两份文档各存一处），
 # 2026-09-30 用户裁定「数字不进文档」后移入此处——文档只留指针，实测只进本报告「八、」段。
@@ -131,20 +131,23 @@ def char_len(path: Path) -> int:
 
 
 def scan_opening_cost() -> dict:
-    overs = []
-    for ov in sorted(PROJECTS_DIR.glob("*/_overview.md")) if PROJECTS_DIR.is_dir() else []:
-        n = char_len(ov)
-        if n > LIMIT_OVERVIEW:
-            overs.append({"project": ov.parent.name, "chars": n})
-    overs.sort(key=lambda x: -x["chars"])
+    overviews = []
+    if PROJECTS_DIR.is_dir():
+        for ov in sorted(PROJECTS_DIR.glob("*/_overview.md")):
+            overviews.append({"project": ov.parent.name, "chars": char_len(ov)})
+    overs = sorted([x for x in overviews if x["chars"] > LIMIT_OVERVIEW], key=lambda x: -x["chars"])
+    boot_chars = char_len(BOOT_PATH)
     index_chars = char_len(INDEX_PATH)
+    worst_overview = max((x["chars"] for x in overviews), default=0)
     return {
+        "boot_chars": boot_chars,
+        "boot_over": boot_chars > LIMIT_BOOT,
         "index_chars": index_chars,
         "index_over": index_chars > LIMIT_INDEX,
-        "worst_overview": overs[0]["chars"] if overs else 0,
-        "trio_worst_chars": index_chars + overs[0]["chars"] if overs else index_chars,
+        "worst_overview": worst_overview,
+        "boot_approx_chars": boot_chars + worst_overview,
         "overview_offenders": overs,
-        "overview_total": len(list(PROJECTS_DIR.glob("*/_overview.md"))) if PROJECTS_DIR.is_dir() else 0,
+        "overview_total": len(overviews),
     }
 
 
@@ -586,14 +589,15 @@ def render(r: dict) -> str:
     out.append("")
 
     c = r.get("cost") or {}
-    out.append("## 五、开场成本（会话必读三件；阈值为策略常量，见脚本顶部）")
+    out.append("## 五、Agent 启动成本（BOOT + 项目切片；阈值为策略常量，见脚本顶部）")
     out.append("")
     if not c:
         out.append("（未采集——`--todo` 指向库外路径时跳过）")
     else:
-        trio = c["trio_worst_chars"] + r["char_total"]
-        out.append(f"- `Memory/_index.md`：{c['index_chars']} 字符（限 {LIMIT_INDEX}）{'**超标**' if c['index_over'] else 'ok'}")
-        out.append(f"- `Memory/Todo.md`：{r['char_total']} 字符（限 {LIMIT_TODO}）{'**超标**' if r['char_total'] > LIMIT_TODO else 'ok'}")
+        approx = c["boot_approx_chars"]
+        out.append(f"- `Memory/BOOT.md`：{c['boot_chars']} 字符（限 {LIMIT_BOOT}）{'**超标**' if c['boot_over'] else 'ok'}")
+        out.append(f"- `Memory/_index.md`：{c['index_chars']} 字符（目录派生物，不计入启动成本）")
+        out.append(f"- `Memory/Todo.md`：{r['char_total']} 字符（源文件；启动只取当前项目切片，限 {LIMIT_TODO}）")
         out.append(f"- `Projects/*/_overview.md`：共 {c['overview_total']} 份，最大 {c['worst_overview']} 字符（单份限 {LIMIT_OVERVIEW}）")
         if c["overview_offenders"]:
             out.append(f"  **待瘦身 {len(c['overview_offenders'])} 份**（细节移 `working/journal.md`/`plan.md`，overview 只留定位·关键路径·关联资产·状态）：")
@@ -601,10 +605,10 @@ def render(r: dict) -> str:
                 out.append(f"  - `{o['project']}` {o['chars']} 字符")
         else:
             out.append("  无单份超标。")
-        out.append(f"- 最坏情形三件合计：{trio} 字符（限 {LIMIT_TRIO_WORST}）{'**超标**' if trio > LIMIT_TRIO_WORST else 'ok'}")
+        out.append(f"- 启动近似上限：{approx} 字符（BOOT + 最大 overview；限 {LIMIT_BOOT_APPROX}）{'**超标**' if approx > LIMIT_BOOT_APPROX else 'ok'}")
         out.append("")
-        out.append("> 口径：季度维护只看**待瘦身项数是否下降**，不逐条清零（同 `dup_check` 基线口径）。")
-        out.append("> 文档里不写体量数字（实测值会漂）；本段是唯一事实源。")
+        out.append("> 实际启动包由 `memory_boot.py` 生成并受 `--budget` 控制；本段只做存量扫描。")
+        out.append("> 季度维护只看待瘦身项数与超限项是否下降。")
     out.append("")
 
     s = r.get("scope") or {}
@@ -743,7 +747,7 @@ def main() -> int:
                          "此参数只为 fixture 验收可复现，日常运行不要带")
     ap.add_argument("-o", "--out", default=str(DEFAULT_OUT), help="报告输出路径")
     ap.add_argument("--check", action="store_true", help="门禁模式：有违规退出码 1")
-    ap.add_argument("--cost-check", action="store_true", help="门禁模式：开场成本超标即退出码 1（季度维护用）")
+    ap.add_argument("--cost-check", action="store_true", help="门禁模式：Agent 启动成本超标即退出码 1（季度维护用）")
     ap.add_argument("--scope-check", action="store_true", help="门禁模式：`scope` 非法取值 / 冗余出现即退出码 1（季度维护用）")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     ap.add_argument("--quiet", action="store_true", help="不往 stdout 打印")
@@ -784,9 +788,8 @@ def main() -> int:
     scope_violations = len(scope.get("bad") or []) + len(scope.get("redundant") or [])
     cost_violations = (
         len(cost.get("overview_offenders") or [])
-        + (1 if cost.get("index_over") else 0)
-        + (1 if result["char_total"] > LIMIT_TODO else 0)
-        + (1 if (cost.get("trio_worst_chars", 0) + result["char_total"]) > LIMIT_TRIO_WORST else 0)
+        + (1 if cost.get("boot_over") else 0)
+        + (1 if cost.get("boot_approx_chars", 0) > LIMIT_BOOT_APPROX else 0)
     )
 
     out = Path(args.out)
@@ -799,7 +802,7 @@ def main() -> int:
     summary = (
         f"完成信号残留 {len(result['signals'])} 条 / 无对应目录分组 {len(result['unmapped_groups'])} 个 / "
         f"缺 completed.md 项目 {len(result['missing_completed'])} 个 / 删除线留档 {len(result['retired'])} 条 / "
-        f"开场成本待瘦身 {cost_violations} 项 / scope 违规 {scope_violations} 处 / "
+        f"Agent 启动成本待瘦身 {cost_violations} 项 / scope 违规 {scope_violations} 处 / "
         f"Todo 假声明 {claim_violations} 处（另 {claim_notes} 条旧声明无法核对） / "
         f"暂存层待压缩（判压面=journal） {len((result['staging'] or {}).get('over') or [])} 份 / "
         f"type 词表违规 {type_violations} 处（另 {len(tv['missing'])} 篇缺 type） / "
@@ -835,7 +838,7 @@ def main() -> int:
         return 1
 
     if args.cost_check and cost_violations:
-        print(f"[!] 开场成本 {cost_violations} 项超标 —— 细节下沉 working/journal.md|plan.md，overview 只留四要素", file=sys.stderr)
+        print(f"[!] Agent 启动成本 {cost_violations} 项超标 —— BOOT.md 只留稳定短内容；细节下沉 working/journal.md|plan.md", file=sys.stderr)
         return 1
 
     if args.scope_check and scope_violations:
@@ -844,7 +847,7 @@ def main() -> int:
 
     print(f"[ok] 干净：无完成信号残留、分组名全部命中项目目录、Todo 声明可核对、`type` 取值在词表内" if not violations else f"[ok] --check 未启用，仅报告（{violations} 处违规）")
     if cost_violations and not args.cost_check:
-        print(f"[note] 开场成本待瘦身 {cost_violations} 项 —— 不拦本次门禁，见报告第五节（季度只看项数增减）")
+        print(f"[note] Agent 启动成本待瘦身 {cost_violations} 项 —— 不拦本次门禁，见报告第五节（季度只看项数增减）")
     if scope_violations and not args.scope_check:
         print(f"[note] scope 违规 {scope_violations} 处 —— 不拦本次门禁，见报告第六节（季度用 --scope-check 拦）")
     if claim_notes:
