@@ -80,6 +80,16 @@ python scripts/sync_memory_instructions.py --check
 
 当前结果：单元测试通过；索引门禁通过；待办门禁通过；`--cost-check` 通过；编码检查通过；指令声明位检查通过。
 
+## 真实库只读压测
+
+对 `E:\knowledge\vault\Memory` 只读运行、未写入：
+
+- 项目 `记忆库` 的启动包：**2,607 字符**，读取 `Projects/记忆库/_overview.md` + `Todo.md`；`_index.md` 未读。
+- 查询 `开场成本`：返回 5/10 条命中，输出 **2,826 字符**（预算 5,000）。
+- 查询 `索引瘦身`：返回 3/3 条命中，输出 **1,755 字符**。
+
+当前运行库还没有 `BOOT.md` 和项目 `_state.md`，所以这次是“迁移前只读基线”；加入两者后，启动包仍受 `--budget` 硬限制。
+
 ## 未进入本批的范围
 
 - 移除 `_index.md` 与 `mem_index.py` 的兼容依赖；
@@ -89,4 +99,3 @@ python scripts/sync_memory_instructions.py --check
 - 把本机运行库 `E:\knowledge\vault\Memory` 切换到新结构。
 
 在这些项目完成前，`_index.md` 仍是校验派生物，但不是 Agent 启动上下文。
-
