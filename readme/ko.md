@@ -20,8 +20,8 @@
 1. **거의 제로 구성** — Markdown 파일 + 표준 라이브러리 전용 스크립트. 디렉터리에 복사하는 것이 설치의 전부.
 2. **기억의 저장소는 하나** — 도구 쪽 설정에는 "포인터 + 짧은 훅"만. 기억 내용은 쓰지 않는다.
 3. **구조화된 계층** — `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects` + `Todo.md`·`Inbox/`·`Archive/`.
-4. **인덱스는 파생물** — frontmatter에서 `mem_index.py`가 생성. 사람은 한 줄 소개만 다듬고, 재생성해도 지워지지 않음.
-5. **완료 = 이동** — 끝낸 할 일은 `working/completed.md`로 옮기고 Todo에서는 삭제. 자리에 ✅ 표시하지 않음.
+4. **인덱스는 파생물** — `Decisions/`를 제외한 각 콘텐츠 계층을 `mem_index.py`가 생성. 사람은 한 줄 소개만 다듬고, 재생성해도 지워지지 않음. `Decisions/_index.md`는 한 행이 여러 결정을 덮을 수 있어 수동 관리.
+5. **종결 = 이동** — 완료·취소한 할 일은 `working/completed.md`로(날짜·결과·이유·출처 포함) 옮기고 Todo에서 삭제. 자리에 ✅나 영구 취소선을 남기지 않음.
 6. **게이트 있는 공정만 무너지지 않는다** — 모든 게이트에는 실제 사고의 배경이 있음([docs/04](../docs/04-演化史-门禁背后的事故.md)).
 7. **프라이버시는 가드로** — `.gitignore` + `pre-commit` 훅이 `Memory/` 관련 커밋을 거부.
 
@@ -33,6 +33,7 @@
 https://github.com/star-nebula/ai-memory-vault 를 클론(안 되면 zip 다운로드 후 압축 해제)하고,
 starter/ 아래의 모든 내용을 내 기억 라이브러리 워크스페이스 루트에 복사하세요 —
 이미 노트 저장소가 있으면 그 루트를, 없으면 빈 디렉터리를 새로 만듭니다.
+또한 scripts/ 디렉터리도 그 워크스페이스에 복사하세요 (게이트는 starter/ 안에 없습니다).
 그다음 그 디렉터리에서 python scripts/mem_index.py --write 로 인덱스를 생성.
 마지막으로 워크스페이스 루트의 AGENTS.md와 Memory/_index.md를 읽고,
 "언제 기억을 읽고 어떻게 쓰는지"를 나에게 되풀이해 주세요.
@@ -41,7 +42,7 @@ starter/ 아래의 모든 내용을 내 기억 라이브러리 워크스페이�
 ## 수동 배포
 
 ```bash
-cp -r starter/* /path/to/your-vault/   # 유일한 "설치" 동작
+cp -r starter/* scripts /path/to/your-vault/   # 유일한 "설치" 동작
 ```
 
 치환할 플레이스홀더도, 설치할 의존성도 없습니다. 선택적 후속 단계:
@@ -59,10 +60,10 @@ python scripts/encoding_guard.py <path>  # 인코딩 + 제어 문자 게이트
 
 | 스크립트 | 잡아내는 것 |
 |---|---|
-| `mem_index.py` | 수동 관리 인덱스의 드리프트 · "축자 일치" 쌍 표 불일치 · 판독 시 신선도 프로토콜 결여 |
-| `todo_audit.py` | 완료 표시만 하고 이동하지 않은 항목 · 그룹명↔프로젝트 dir 불일치 · "Todo에 옮겼다"는 허위 보고 · 어휘 밖 type |
+| `mem_index.py` | 수동 관리 인덱스의 드리프트 · 인덱스 셀 노후화 · 단일 정본 모호성 해소 표/포인터 손상 · 결정 앵커 불균형 · 판독 시 신선도 프로토콜 결여 |
+| `todo_audit.py` | 완료 표시만 하고 이동하지 않은 항목 · 그룹명↔프로젝트 dir 불일치 · "Todo에 옮겼다"는 허위 보고 · 어휘 밖 type · Inbox 감사 적체(보고만) |
 | `encoding_guard.py` | 비 UTF-8 / BOM · AI의 이스케이프 탈취가 남긴 제어 문자(grep에서 보이지 않는 지뢰) |
-| `sync_memory_instructions.py` | 도구 지시 자리와 단일 진원의 드리프트 · 진원의 제어 문자 오염 |
+| `sync_memory_instructions.py` | 도구 지시 자리와 단일 진원의 드리프트 · 진원의 제어 문자 오염 · `<项目名>` 의사값 |
 
 > 상세 문서(설계 철학·구조·원칙·진화사)는 [docs/](../docs/)(중국어)에서, 전체 개요는 [영어 README](../README.md)에서 보실 수 있습니다. **이 번역이 뒤처지면 영어판과 중국어 docs가 정본입니다.**
 

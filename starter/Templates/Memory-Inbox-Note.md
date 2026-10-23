@@ -8,7 +8,7 @@ tags: [{{tags}}]
 
 - [ ] 待审核
 - 日期：{{date:YYYY-MM-DD}}
-- 软件：{{tool}}        ← 明确记"哪个 AI 工具写的"
+- 软件：{{tool}}        ← 明确记"哪个 AI 工具写的"（如 Claude Code / Codex）
 - 项目：{{project}}
 - 内容：
   1. {{事项1}}

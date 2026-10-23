@@ -20,8 +20,8 @@
 1. **Quase zero configuração** — arquivos Markdown + scripts só com a biblioteca padrão; copiar para um diretório é a instalação inteira.
 2. **Um único lugar para a memória** — na configuração de cada ferramenta vive só um "ponteiro + gancho curto"; o conteúdo, nunca.
 3. **Camadas estruturadas** — `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects` + `Todo.md`·`Inbox/`·`Archive/`.
-4. **Índices são derivados** — gerados pelo `mem_index.py` a partir do frontmatter; o humano só pule a linha-resumo, e regenerar não a apaga.
-5. **Feito = movido** — a tarefa concluída vai para `working/completed.md` (com data) e sai de `Todo.md`; nunca um ✅ no lugar.
+4. **Índices são derivados** — o `mem_index.py` gera as camadas de conteúdo exceto `Decisions/`; o humano só pule a linha-resumo, e regenerar não a apaga. `Decisions/_index.md` é manual porque uma linha pode cobrir várias decisões.
+5. **Encerrado = movido** — a tarefa concluída ou cancelada vai para `working/completed.md` (com data, resultado, motivo e origem) e sai de `Todo.md`; nunca um ✅ ou riscado permanente no lugar.
 6. **Só etapas com porteira permanecem estáveis** — cada porteira nasceu de um incidente real ([docs/04](../docs/04-演化史-门禁背后的事故.md)).
 7. **Privacidade garantida por guardas** — `.gitignore` + hook `pre-commit` que rejeita qualquer commit que toque `Memory/`.
 
@@ -33,6 +33,7 @@ Envie este parágrafo **exatamente assim para qualquer agente de IA** (Claude Co
 Clone (ou baixe e descompacte) https://github.com/star-nebula/ai-memory-vault ,
 copie todo o conteúdo de starter/ para a raiz do meu espaço de trabalho de memória —
 se eu já tiver um repositório de notas, use a raiz dele; senão, crie um diretório vazio.
+Copie também o diretório scripts/ para esse espaço de trabalho (as portas não estão dentro de starter/).
 Depois execute python scripts/mem_index.py --write nesse diretório para gerar os índices.
 Por fim leia o AGENTS.md da raiz e o Memory/_index.md e repita para mim:
 quando você vai ler a memória e como vai escrevê-la.
@@ -41,7 +42,7 @@ quando você vai ler a memória e como vai escrevê-la.
 ## Implantação manual
 
 ```bash
-cp -r starter/* /caminho/do/seu-vault/   # a única ação de "instalação"
+cp -r starter/* scripts /caminho/do/seu-vault/   # a única ação de "instalação"
 ```
 
 Não há placeholders para substituir nem dependências para instalar. Passos opcionais:
@@ -59,10 +60,10 @@ python scripts/encoding_guard.py <caminho> # porteira: codificação + caractere
 
 | Script | O que bloqueia |
 |---|---|
-| `mem_index.py` | Deriva de índices manuais · divergência entre tabelas "idênticas palavra por palavra" · protocolo de frescor de leitura ausente |
-| `todo_audit.py` | Tarefas "feitas" mas não movidas · grupos sem diretório de projeto · falsas alegações de "já movido ao Todo" · tipos fora do vocabulário |
+| `mem_index.py` | Deriva de índices manuais · células de índice desatualizadas · tabela/ponteiro de desambiguação de fonte única quebrado · âncoras de decisão órfãs · protocolo de frescor de leitura ausente |
+| `todo_audit.py` | Tarefas "feitas" mas não movidas · grupos sem diretório de projeto · falsas alegações de "já movido ao Todo" · tipos fora do vocabulário · acúmulo de auditoria do Inbox (apenas relatório) |
 | `encoding_guard.py` | Não UTF-8 / BOM · caracteres de controle deixados por escapes engolidos pela IA (invisíveis para o grep) |
-| `sync_memory_instructions.py` | Deriva entre o slot de instruções de cada ferramenta e a fonte única · contaminação da fonte |
+| `sync_memory_instructions.py` | Deriva entre o slot de instruções de cada ferramenta e a fonte única · contaminação da fonte · pseudo-valor `<项目名>` |
 
 > A documentação completa (filosofia, estrutura, princípios, história dos incidentes) está em [docs/](../docs/) (em chinês); a visão geral, no [README em inglês](../README.md). **Se esta tradução estiver desatualizada, valem o README em inglês e os docs em chinês.**
 

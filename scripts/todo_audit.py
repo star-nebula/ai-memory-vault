@@ -18,11 +18,15 @@
     6. Todo 声明核对 —— journal/plan 里「已并入 Todo」这类话**是否真有其条**
                      （2026-09-30 增，并入 `--check` 拦；病灶：09-26 journal 声称已并入，
                      Todo 里从来没有那条，静默挂起三天）
-    7. 暂存层体量   —— journal / completed 超「压缩为阶段小结」阈值（2026-09-30 增，报告项）。
+    7. 暂存层体量   —— **判压面只收 journal**；completed 属终态层，只进观测面（报告项）。
     8. `type` 词表    —— frontmatter `type` 取值是否在规则正本第 5 条的括号词表内（2026-09-30 增，
                      并入 `--check` 拦；词表机读自规则正本、脚本内不写死；解析失败 = 退出码 1）
-                     该阈值原先写在 `rule/写入与禁止.md` 第 3 条与 `Todo.md` 正文里（各一份），
-                     用户裁定「数字不进文档」后移入本文件常量；文档只留指针
+    9. 每日审核积压 —— `Inbox/` 根下「登记日期早于运行当天」却仍未被审掉的日记账份数（报告项）。
+                     补的盲区：定时审核任务绑在 app 上，关机/周末记 `skipped` 且不补跑，
+                     可能连续多天零落地而**八门全绿、没有任何一处知道**。
+                     同一计数有两种成因，脚本不猜、由人分因：①任务没跑；②审过了但块里留着
+                     「待本人决定」，按审核 SOP「任一块未过 → 整份不勾不移」被扣在根下。
+                     判据正本 = `Workflows/记忆库自动审核与人工入口.md`「审核范围」段；**只报不拦**。
 
 **为什么体量阈值写在脚本、不写进文档**：
     `Memory/_index.md` §七 曾长期声称开场三件套「≈ 8 KB」。2026-09-29 实测：
@@ -34,7 +38,8 @@
 
 阈值分档（`--check` 把 1/2/6/8 当门禁；成本、`scope` 与暂存层体量走报告，避免历史欠账或改名当天把每次收尾都判红）：
     · 单文件超过 LIMIT_* 记「待瘦身」；`--cost-check` 才作硬门禁退出码 1。
-    · 暂存层（journal / completed）超 LIMIT_STAGING_CHARS（**字符数**口径）记「待压缩」，**只报告不拦**：
+    · 暂存层**判压面只收 journal**：超 LIMIT_STAGING_CHARS（**字符数**口径）记「待压缩」，**只报告不拦**；
+      completed 属终态层，只进「最重几份」观测面。
       压缩旧段是渐进蒸馏，存量不可能当天清零——当门禁就恒红。原「约 500 行」口径永不触发（见报告第八节）。
     · `scope` 违规（非法取值 / 冗余出现）记第六节；`--scope-check` 才作硬门禁退出码 1。
       「缺 scope」的跨层笔记只提示不拦——补字段是写入侧义务，靠审核兜底，不宜让旧笔记天天报红。
@@ -72,6 +77,7 @@ import json
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 # Windows 控制台默认 GBK，本脚本输出含中文与符号，不加这行会 UnicodeEncodeError 中断。
@@ -101,6 +107,8 @@ TODO_PATH = MEMORY_DIR / "Todo.md"
 INDEX_PATH = MEMORY_DIR / "_index.md"
 PROJECTS_DIR = MEMORY_DIR / "Projects"
 DEFAULT_OUT = SCRIPT_DIR / "_out" / "todo_audit.txt"
+INBOX_DIR = MEMORY_DIR / "Inbox"          # 每日审核的现场（只读扫描，本脚本不写它）
+INBOX_DAY_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.md$")
 
 # —— 开场成本阈值（策略常量；改这里，不改文档）——
 LIMIT_INDEX = 5000      # _index.md：唯一入口，超了说明逐篇索引该下沉到各层
@@ -145,13 +153,15 @@ STRONG_SIGNALS = ("✅", "✔", "已执行完毕", "已完成：", "已完成:",
 
 
 def scan_staging_volume() -> dict:
-    """暂存层（journal / completed）体量 —— 「该压缩旧段为阶段小结」的实测来源。
+    """暂存层体量 —— 两个面分开，别把它们混成一件。
 
-    只报告不拦：压缩是渐进蒸馏，存量不可能当天清零（恒红的门禁等于没有门禁）。
+    **判压面（`over`）= 只 `journal.md`**：超过 `LIMIT_STAGING_CHARS` 才叫「该把旧段压成阶段小结」。
+    **观测面（`heaviest`）= journal 与 completed 混排最重几份**：`completed.md` 属**终态层**，
+    对它只报体量、不判压——它没有按日小节（无「旧段」可切单元），同时又是「七、」假声明
+    核对的证据面（压掉可能当场把门禁判红）。**覆盖面可以收窄，观测不能归零。**
+
+    只报告不拦：蒸馏是渐进动作，存量不可能当天清零（恒红的门禁等于没有门禁）。
     口径正本 = `rule/写入与禁止.md` 第 3 条；阈值 = 上面的 `LIMIT_STAGING_CHARS`（策略在脚本、事实在报告）。
-
-    度量单位是**字符数**，不是行数：本库 journal 常把一整段实测叙述写成一行，行数口径实测永不触发
-    （2026-09-30 用户裁定改口径）。行数仍一并呈报，只作阅读参考列。
     """
     files = []
     if PROJECTS_DIR.is_dir():
@@ -161,10 +171,51 @@ def scan_staging_volume() -> dict:
     for f in files:
         text = read_text(f)
         rows.append({"project": f.parent.parent.name, "file": f.name,
+                     "kind": "journal" if f.name == "journal.md" else "completed",
                      "lines": len(text.splitlines()), "chars": len(text)})
-    over = sorted([x for x in rows if x["chars"] > LIMIT_STAGING_CHARS], key=lambda x: -x["chars"])
+    over = sorted([x for x in rows if x["kind"] == "journal" and x["chars"] > LIMIT_STAGING_CHARS],
+                  key=lambda x: -x["chars"])
     heaviest = sorted(rows, key=lambda x: -x["chars"])[:STAGING_REPORT_TOP]
-    return {"scanned": len(rows), "over": over, "heaviest": heaviest}
+    return {"scanned": len(rows),
+            "scanned_journal": sum(1 for x in rows if x["kind"] == "journal"),
+            "over": over, "heaviest": heaviest}
+
+
+def scan_audit_backlog(inbox_dir: Path = INBOX_DIR, run_date=None) -> dict:
+    """每日 Inbox 审核积压 —— 让「定时审核停跑」在机器上可见（**只报不拦**）。
+
+    审核对象 = `Inbox/` 根下文件名形如 `YYYY-MM-DD.md` 且日期**早于运行当天**的登记文件；
+    `Inbox/Archive/`（留档）与子目录不审；不含合法日期名的文件跳过。
+    只扫根目录一层、只读不写 —— 本脚本不代替审核任务移动或勾选任何文件。
+
+    计数不为零有两种成因，脚本不猜、由人分因：
+    ① 审核任务没跑；② 审过了但块里留着「待本人决定」，按审核 SOP「任一块未过 → 整份不勾不移」
+    被整份扣在根下。报告术语因此叫**待结积压**，不叫「停跑份数」。
+
+    为什么只报不拦：成因 ① 是外因（设备关机 / 节假日 / app 未运行且调度器不补跑），
+    成因 ② 要等人的裁定；做成拦停 = 每次收尾恒红，而恒红的门禁等于没有门禁。
+    """
+    run = run_date or date.today()
+    res = {"dir": str(inbox_dir), "exists": inbox_dir.is_dir(), "run_date": run.isoformat(),
+           "root_md": 0, "dated": 0, "skipped": [], "overdue": []}
+    if not res["exists"]:
+        return res
+    for p in sorted(inbox_dir.glob("*.md")):
+        res["root_md"] += 1
+        m = INBOX_DAY_RE.match(p.name)
+        if not m:
+            res["skipped"].append(p.name)
+            continue
+        try:
+            d = date.fromisoformat(m.group(1))
+        except ValueError:
+            res["skipped"].append(p.name)
+            continue
+        res["dated"] += 1
+        if d < run:
+            res["overdue"].append({"name": p.name, "date": m.group(1), "days": (run - d).days})
+    res["overdue"].sort(key=lambda x: x["date"])
+    return res
 
 # —— `scope` 词表（跨层笔记归属字段；口径见 rule/写入与禁止.md 第 5 条）——
 # 合法取值 = {"global"} ∪ Projects/ 下的目录名，**实盘推导、不写死词表**（写死就是第二份事实源）。
@@ -609,31 +660,31 @@ def render(r: dict) -> str:
                    "只查 Todo 就会在归档当天把声明判成红（恒红的门禁等于没有门禁）。")
     out.append("")
     st = r.get("staging") or {}
-    out.append("## 八、暂存层体量（journal / completed 超阈值 → 该压缩旧段为「阶段小结」）")
+    out.append("## 八、暂存层体量（判压面 = journal；completed 只观测）")
     out.append("")
     if not st:
         out.append("（未采集）")
     else:
-        out.append(f"- 扫描 `Projects/*/working/` 下 journal 与 completed 共 {st['scanned']} 份，"
+        out.append(f"- 扫描 `Projects/*/working/` 下 journal 与 completed 共 {st['scanned']} 份"
+                   f"（其中 journal {st.get('scanned_journal', 0)} 份），"
                    f"阈值口径 = **字符数** {LIMIT_STAGING_CHARS} 字符/份（**阈值是本文件顶部常量，本段是实测**）。")
         if st["over"]:
-            out.append(f"  **超阈值 {len(st['over'])} 份**（旧段压成阶段小结：只留结论 + wikilink 指向已转正笔记）：")
+            out.append(f"  **journal 超阈值 {len(st['over'])} 份**（旧段压成阶段小结：只留结论 + wikilink 指向已转正笔记）：")
             for x in st["over"]:
                 out.append(f"  - `Projects/{x['project']}/working/{x['file']}` {x['chars']} 字符 / {x['lines']} 行")
         else:
-            out.append("  按字符数口径**无超标**文件。")
-        out.append(f"- 同批按**字符数**最重的 {len(st['heaviest'])} 份（读取成本实际由它决定）：")
+            out.append("  journal 按字符数口径**无超标**文件。")
+        out.append(f"- 同批按**字符数**最重的 {len(st['heaviest'])} 份（读取成本实际由它决定；completed 只在此观测）：")
         for x in st["heaviest"]:
-            flag = "  ← 超阈值" if x["chars"] > LIMIT_STAGING_CHARS else ""
+            flag = "  ← journal 超阈值" if x.get("kind") == "journal" and x["chars"] > LIMIT_STAGING_CHARS else ""
             out.append(f"  - `Projects/{x['project']}/working/{x['file']}` {x['chars']} 字符 / {x['lines']} 行{flag}")
         out.append("")
-        out.append("> **单位为什么是字符不是行**（2026-09-30 裁定，阈值移入脚本常量时顺带复检口径）："
-                   "原写死在文档里的「约 500 行」在本库**永不触发**——journal 习惯把一整段实测叙述写成一行，"
-                   "单行动辄上千字符，于是整批按行数零超标、最重的一份却已是几万字符。"
-                   "一个永不报警的阈值和一个正确的阈值在跑之前长得一模一样；行数在本段降级为参考列。")
-        out.append("> **只报告不拦**（季度看「待压缩份数」与最重份的字符数是否下降，同开场成本与 `dup_check` 基线口径）："
-                   "蒸馏是渐进动作，把存量债当门禁会让每次收尾恒红。")
-        out.append("> 口径正本见 `rule/写入与禁止.md` 第 3 条；该行只指路，不抄阈值与份数。")
+        out.append("> **判压面只收 journal**：`working/completed.md` 属终态层，没有按日小节、无「旧段」可切；"
+                   "同时它是「七、」假声明核对的证据面，压掉可能当场把门禁判红。只报体量、不判压。")
+        out.append("> **单位为什么是字符不是行**：journal 常把一整段实测叙述写成一行，单行动辄上千字符，"
+                   "行数口径可能永不触发；行数在本段只作阅读参考列。")
+        out.append("> **只报告不拦**：蒸馏是渐进动作，把存量债当门禁会让每次收尾恒红。"
+                   "口径正本见 `rule/写入与禁止.md` 第 3 条；该行只指路，不抄阈值与份数。")
     tv = r.get("type_vocab") or {}
     out.append("")
     out.append("## 九、frontmatter `type` 词表（取值清单机读自规则正本第 5 条，脚本内不写死）")
@@ -652,12 +703,44 @@ def render(r: dict) -> str:
     out.append("> **拦/报划界**：词表外取值进 `--check` 拦；缺 `type` 只报（同「缺 scope」）。**只报告不自动改**。")
     out.append("> 词表只有一处正本：本脚本不复制取值清单，第 5 条改了这里跟着变；解析不出来就退出码 1，不静默通过。")
     out.append("")
+    ab = r.get("audit_backlog") or {}
+    out.append("## 十、每日 Inbox 审核积压（**只报不拦**：定时审核任务「停跑」的机器可见面）")
+    if not ab:
+        out.append("（本次未采集）")
+    elif not ab.get("exists"):
+        out.append(f"  [!] 目录不存在：`{ab.get('dir')}` —— 路径变了就同步改本文件顶部 `INBOX_DIR`，"
+                   "静默跳过等于这项检查不存在。")
+    else:
+        od = ab.get("overdue") or []
+        out.append(f"- 运行日 = `{ab['run_date']}`；`Inbox/` 根下 `.md` {ab['root_md']} 份"
+                   f"（带合法日期名 {ab['dated']} 份 / 无日期名跳过 {len(ab.get('skipped') or [])} 份"
+                   f"{'：' + ', '.join('`%s`' % x for x in ab['skipped']) if ab.get('skipped') else ''}）")
+        if od:
+            out.append(f"  **待结积压 {len(od)} 份**（登记日期早于运行当天）—— 两种成因都要认："
+                       "①审核任务没跑；②审过了但块里留着「待本人决定」，按审核 SOP「任一块未过 → 整份不勾不移」被扣在根下：")
+            for x in od:
+                out.append(f"  - `{x['name']}` 滞留 {x['days']} 天")
+        else:
+            out.append("  无积压：根下没有早于当天的日记账。")
+        out.append("")
+        out.append("> **判据正本** = `Workflows/记忆库自动审核与人工入口.md`「审核范围」段"
+                   "（本段只回抄它的机器可读形态，不另立口径）；`Archive/` 与各子目录不扫，"
+                   "当天及以后新增不算积压，本脚本**不代审核任务移动或勾选任何文件**。")
+        out.append("> **为什么只报不拦**：积压的成因是外因（设备关机 / 节假日 / app 未运行且调度器不补跑），"
+                   "或需等人裁定「待本人决定」的块；做成拦停 = 每次收尾恒红，恒红的门禁等于没有门禁。"
+                   "季度只看积压份数是否归零与最长滞留天数的趋势。")
+    out.append("")
     return "\n".join(out)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Todo 归档体检（完成 = 移走）")
     ap.add_argument("--todo", default=str(TODO_PATH), help="Todo 文件路径")
+    ap.add_argument("--inbox", default=str(INBOX_DIR),
+                    help="Inbox 目录路径（第十节用；指到 fixture 目录可单测积压计数，不碰真实 Inbox）")
+    ap.add_argument("--audit-date", default=None,
+                    help="覆盖「运行当天」（YYYY-MM-DD）。第十节的积压判定本以真实时钟为准，"
+                         "此参数只为 fixture 验收可复现，日常运行不要带")
     ap.add_argument("-o", "--out", default=str(DEFAULT_OUT), help="报告输出路径")
     ap.add_argument("--check", action="store_true", help="门禁模式：有违规退出码 1")
     ap.add_argument("--cost-check", action="store_true", help="门禁模式：开场成本超标即退出码 1（季度维护用）")
@@ -674,6 +757,14 @@ def main() -> int:
     result = scan_todo(todo)
     result["claims"] = scan_todo_claims(todo)
     result["staging"] = scan_staging_volume()
+    run_date = date.today()
+    if args.audit_date:
+        try:
+            run_date = date.fromisoformat(args.audit_date)
+        except ValueError:
+            print(f"[!] --audit-date 要写成 YYYY-MM-DD，收到的是「{args.audit_date}」", file=sys.stderr)
+            return 1
+    result["audit_backlog"] = scan_audit_backlog(Path(args.inbox), run_date)
     result["type_vocab"] = scan_type_vocab()
     tv = result["type_vocab"]
     if tv["vocab"] is None:
@@ -686,6 +777,8 @@ def main() -> int:
     cost = result.get("cost") or {}
     scope = result.get("scope") or {}
     claims = result["claims"]
+    ab = result["audit_backlog"] or {}
+    backlog = ab.get("overdue") or []
     claim_violations = len(claims["broken"])
     claim_notes = len(claims["unverifiable"])
     scope_violations = len(scope.get("bad") or []) + len(scope.get("redundant") or [])
@@ -708,8 +801,9 @@ def main() -> int:
         f"缺 completed.md 项目 {len(result['missing_completed'])} 个 / 删除线留档 {len(result['retired'])} 条 / "
         f"开场成本待瘦身 {cost_violations} 项 / scope 违规 {scope_violations} 处 / "
         f"Todo 假声明 {claim_violations} 处（另 {claim_notes} 条旧声明无法核对） / "
-        f"暂存层待压缩 {len((result['staging'] or {}).get('over') or [])} 份 / "
-        f"type 词表违规 {type_violations} 处（另 {len(tv['missing'])} 篇缺 type）"
+        f"暂存层待压缩（判压面=journal） {len((result['staging'] or {}).get('over') or [])} 份 / "
+        f"type 词表违规 {type_violations} 处（另 {len(tv['missing'])} 篇缺 type） / "
+        f"待结积压 {len(backlog)} 份（只报不拦）"
     )
     if not args.quiet:
         print(f"Todo: {todo}")
@@ -727,6 +821,8 @@ def main() -> int:
             print(f"  Todo 假声明: {b['file']}:{b['line']} 声明的「{b['title']}」在 Todo 与任何 completed.md 都查不到")
         for b in tv["bad"][:20]:
             print(f"  type 词表外取值: {b['file']} -> {b['value']}")
+        for x in backlog[:20]:
+            print(f"  待结积压: Inbox/{x['name']}（登记日 {x['date']}，滞留 {x['days']} 天）")
         print(f"报告: {out}")
 
     if args.check and violations:
@@ -756,6 +852,10 @@ def main() -> int:
               f"不拦，见报告第七节（新写必须带形态，否则脚本查不到）")
     if tv["missing"]:
         print(f"[note] {len(tv['missing'])} 篇有 frontmatter 却缺 `type` —— 只提示不拦（补字段是写入侧义务），清单见报告第九节")
+    if backlog:
+        print(f"[note] 待结积压 {len(backlog)} 份（最长滞留 {max(x['days'] for x in backlog)} 天）—— 不拦本次门禁，见报告第十节；"
+              f"先分清两种成因：审核任务没跑，还是审过但块里留有『待本人决定』把整份扣住；处置入口在 "
+              f"`Workflows/记忆库自动审核与人工入口.md`")
     return 0
 
 

@@ -30,6 +30,10 @@ sync_memory_instructions.py — 记忆库自定义指令「单一真源」同步
 真源卫生门：真源含 0x00-0x08 / 0x0B / 0x0C / 0x0E-0x1F 等裸控制符时拒绝部署——
 真源里 `\v` 被当转义吃掉会落成裸 0x0B，部署出去的指针变成不可解析的 `ruleibe-coding.md`
 （真实事故：坏指针在各工具存活约 7 天无人发现，因为部署链此前只有部署没有校验）。
+
+声明位伪值门：五个入口文件（真源 / 分发手册 / `Memory/AGENTS.md` / `Memory/Rule.md` / 工作区根 `AGENTS.md`）
+里「当前项目名」后面不得出现 `<项目名>`。项目名只有运行时才知道，写死占位等于给 AI 一个假值；
+合法形态 = 指向 `Memory/_index.md` §七 的指针。`Projects/<项目名>/...` 这类路径模式不受影响。
 """
 import io
 import json
@@ -97,8 +101,14 @@ def _find_memory_dir() -> Path:
 MEMORY_ROOT = _find_memory_dir()
 CANON = MEMORY_ROOT / "Workflows" / "AI工具自定义指令-完整版.md"
 MANUAL = MEMORY_ROOT / "Workflows" / "AI工具自定义指令.md"
+MEM_AGENTS = MEMORY_ROOT / "AGENTS.md"
+RULE_MD = MEMORY_ROOT / "Rule.md"
+VAULT_AGENTS = MEMORY_ROOT.parent / "AGENTS.md"
 MEMORY_PROJECTS = MEMORY_ROOT / "Projects"
 BAK_DIR = MEMORY_ROOT.parent / "backup"
+# 声明位：会写「当前项目名」的入口文件。它们的值只能是指针，不能是尖括号伪值。
+DECL_FILES = (CANON, MANUAL, MEM_AGENTS, RULE_MD, VAULT_AGENTS)
+PSEUDO_DECL = re.compile(r"当前项目名[^\n]{0,12}<项目名>")
 
 
 def bad_ctrl(text):
@@ -223,6 +233,28 @@ def iter_targets():
         yield t, os.path.normpath(os.path.expanduser(t["path"]))
 
 
+def check_decls():
+    """声明位伪值检查：返回命中条数（0 = 干净）。
+
+    「当前项目名：<项目名>」把只有运行时才知道的值写成了字面占位符，分发到各工具位后会被
+    读成空，于是「完成 = 移走」的目标目录当场不可解析。合法形态 = 指向 `Memory/_index.md` §七 的
+    指针；`Projects/<项目名>/...` 这类**路径模式**不带「当前项目名」前缀，不受本检查影响。
+    """
+    hits = []
+    for path in DECL_FILES:
+        if not path.is_file():
+            hits.append("[缺入口文件] %s —— 无法确认它没写回伪值" % path)
+            continue
+        t = path.read_text(encoding="utf-8", errors="replace")
+        for i, line in enumerate(t.splitlines(), 1):
+            if PSEUDO_DECL.search(line):
+                hits.append("[声明位伪值] %s:%d 「当前项目名」带着 <项目名>，改为指 `_index.md` §七"
+                            % (path.name, i))
+    for h in hits:
+        log(h)
+    return len(hits)
+
+
 def check(text):
     log("=== 校验：真源 vs 各部署位（只读，不写）===")
     log("真源: %s (%d 字符)" % (CANON, len(text)))
@@ -231,6 +263,11 @@ def check(text):
         log("[FATAL] 真源含裸控制符 %s —— 多半是 `\\v`/`\\f` 被当转义吃掉，先修真源" % ctrl)
         return 1
     log("[OK]   真源无裸控制符")
+    n = check_decls()
+    if n:
+        log("[FATAL] 声明位伪值 %d 处 —— 项目名只能由运行时给出（判定三步见 `Memory/_index.md` §七）" % n)
+        return 1
+    log("[声明位] %d 个入口文件（真源/手册/钩子/权威全文/工作区根）均无「当前项目名：<占位>」伪值" % len(DECL_FILES))
     if not TARGETS:
         log("[SKIP] 未配置部署目标（TARGETS 为空）——已做真源体检，跳过逐位比对")
         return 0

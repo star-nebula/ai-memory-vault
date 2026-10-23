@@ -30,8 +30,8 @@
 1. **几乎零配置**：整个体系 = Markdown 文件 + 仅标准库的脚本。不部署服务、不装依赖、不写配置文件；入口靠工具自动读取工作区根 `AGENTS.md`，脚本靠向上探测找到 `Memory/`——拷进去就算装完了。规则文本用相对路径表述，唯一可能的一次性配置（用户级全局指令的绝对路径）也是可选的。
 2. **记忆唯一落点**。所有跨会话信息只写进这个 Markdown 目录；禁止写入任何工具私有记忆位（`.workbuddy/memory/`、`~/.claude/`、auto-memory 等）。工具的"自定义指令 / AGENTS.md / 规则文件"里只放**指向记忆库的指针 + 铁律短钩子**——那里不是记忆的仓库，是记忆库的门牌。
 3. **结构化分层**。记忆不是一锅笔记，是六个层：`Preferences`（偏好）/ `Plans`（规划）/ `Decisions`（决策）/ `Lessons`（踩坑）/ `Workflows`（流程）/ `Projects/<项目名>/`（项目记忆），外加全局待办 `Todo.md`、写入登记簿 `Inbox/`、季度归档 `Archive/`。
-4. **索引是派生物**。手工维护的大索引必然漂移（作者实测落后实盘 4~5 条）。各层 `_index.md` 一律由 `mem_index.py` 从笔记 frontmatter 生成，人工只润色"一句话定位"，脚本重跑不覆盖。
-5. **完成 = 移走，不是标注**。待办完成时把条目追加到 `Projects/<项目名>/working/completed.md` 并**从 Todo 删除**，而不是打个 ✅ 留在原地——"完成信号残留"由 `todo_audit.py` 门禁拦截。
+4. **索引是派生物**。手工维护的大索引必然漂移（作者实测落后实盘 4~5 条）。除 `Decisions/` 外各层 `_index.md` 由 `mem_index.py` 从笔记 frontmatter 生成，人工只润色"一句话定位"，脚本重跑不覆盖；`Decisions/_index.md` 专用格式，手工维护。
+5. **结案 = 移走，不是标注**。待办完成或取消时，把条目追加到 `Projects/<项目名>/working/completed.md`（带结案日期、结果、原因与来源）并**从 Todo 删除**，而不是打个 ✅ 或永久删除线留在原地——"完成信号残留"由 `todo_audit.py` 门禁拦截。
 6. **有门禁的环节才不漂移**。纯靠"记得同步"的约定已被反复证伪。本库的每个门禁都对应一次真实事故：索引漂移、假成功入库、半部署、编码腐蚀、Todo 假声明……见 [docs/04-演化史.md](../docs/04-演化史-门禁背后的事故.md)。
 7. **隐私边界硬编码**。记忆库整体被 `.gitignore` 排除出公开仓库，父仓 `pre-commit` 钩子**拒绝任何触碰它的提交**——防私密笔记被误推上 GitHub，不靠自觉靠守卫。
 
@@ -64,23 +64,26 @@
 ```text
 克隆（无法克隆就下载 zip 解压）https://github.com/star-nebula/ai-memory-vault ，
 把 starter/ 目录下的全部内容拷进我的记忆库工作区根目录——我已有笔记库就用它的根，
-没有就新建一个空目录。然后在该目录运行 python scripts/mem_index.py --write 生成索引。
+没有就新建一个空目录。同时把 scripts/ 目录也拷进该工作区（门禁脚本不在 starter/ 里）。
+然后在该目录运行 python scripts/mem_index.py --write 生成索引。
 最后读一遍工作区根的 AGENTS.md 和 Memory/_index.md，向我复述：你以后在什么时机读记忆、怎么写记忆。
 ```
 
 ## 手动部署（不经过 Agent）
 
 ```bash
-# 唯一的"安装"动作：把骨架拷进你的笔记库 / 工作区根（Obsidian 等任何 Markdown 库均可）
-cp -r starter/* /path/to/your-vault/
+# 唯一的"安装"动作：把骨架 + 门禁脚本拷进工作区根（Obsidian 等任何 Markdown 库均可）
+cp -r starter/* scripts /path/to/your-vault/
 ```
+
+`scripts/` 必须一起拷入——门禁脚本不在 `starter/` 里。
 
 没有占位符要替换、没有依赖要安装、没有服务要部署——到这里记忆库已经可用了。AI 工具进入工作区会自动读到根 `AGENTS.md`，按 `Memory/_index.md` 的路由开始读写记忆。
 
 两个**可选**动作（不改也不影响运行）：
 
 ```bash
-# 生成各层索引（派生物；之后新增笔记重跑即可，人工只润色"一句话定位"）
+# 生成各层索引（派生物；除 Decisions 外；之后新增笔记重跑即可，人工只润色"一句话定位"）
 python scripts/mem_index.py --write
 python scripts/mem_index.py --check     # 索引漂移门禁
 python scripts/todo_audit.py --check    # 待办归档门禁
@@ -107,10 +110,10 @@ Memory/rule/
 
 | 脚本 | 拦什么 | 对应事故 |
 |---|---|---|
-| `mem_index.py` | 手工索引漂移、成对"逐字一致"表漂移、读时时效协议失明 | Home.md 索引落后实盘 4~5 条 |
-| `todo_audit.py` | 完成信号残留、分组名与项目目录不映射、"已并入 Todo"假声明、`type`/`scope` 词表 | 声称已归档的条目静默挂起三天 |
+| `mem_index.py` | 手工索引漂移、索引「更新」列滞旧、消歧单一正本表/指针破损、决策锚点失衡、读时时效协议失明 | Home.md 索引落后实盘 4~5 条 |
+| `todo_audit.py` | 完成信号残留、分组名与项目目录不映射、"已并入 Todo"假声明、`type`/`scope` 词表；Inbox 审核积压（只报告） | 声称已归档的条目静默挂起三天 |
 | `encoding_guard.py` | 非 UTF-8 / BOM 残留、AI 转义吞字留下的裸控制符（让 grep 集体失明的隐形杀手） | `\v` 被当转义吃掉，坏指针存活 7 天 |
-| `sync_memory_instructions.py` | 多工具指令位与真源的漂移、真源裸控制符 | 部署链"只有部署没有校验" |
+| `sync_memory_instructions.py` | 多工具指令位与真源的漂移、真源裸控制符、`<项目名>` 声明位伪值 | 部署链"只有部署没有校验" |
 
 设计取舍（为什么有的检查是门禁、有的只是报告）与全部事故复盘，见 [docs/03-核心设计原则.md](../docs/03-核心设计原则.md) 与 [docs/04-演化史.md](../docs/04-演化史-门禁背后的事故.md)。
 
@@ -120,6 +123,7 @@ Memory/rule/
 - [02-目录结构与读取路由](../docs/02-目录结构与读取路由.md) —— 六层 + 三根目录、读取成本约定、读时时效协议
 - [03-核心设计原则](../docs/03-核心设计原则.md) —— 单一事实源 / 派生物 / 门禁文化 / 隐私边界
 - [04-演化史-门禁背后的事故](../docs/04-演化史-门禁背后的事故.md) —— 每个门禁的设立依据（真实事故复盘）
+- [05-记忆库结构与规则详解](../docs/05-记忆库结构与规则详解.md) —— 逐文件的结构、规则、门禁与操作手册
 
 ## License
 

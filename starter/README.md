@@ -1,18 +1,18 @@
 # starter —— 可整体拷走的记忆库骨架
 
-本目录是整套体系的**最小可运行形态**：把里面的内容拷进你的笔记库 / 工作区根（Obsidian 等任何 Markdown 库均可），记忆库即上线——没有占位符替换、没有依赖安装、没有服务部署。
+本目录是整套体系的**最小可运行形态**：把里面的内容拷进你的笔记库 / 工作区根（Obsidian 等任何 Markdown 库均可），再拷入门禁脚本目录 `scripts/`，记忆库即上线——没有占位符替换、没有依赖安装、没有服务部署。
 
 ## 拷贝（唯一的"安装"动作）
 
 ```bash
-cp -r starter/* /path/to/your-vault/
+cp -r starter/* scripts /path/to/your-vault/
 ```
 
-拷完即用：AI 工具进入工作区自动读到根 `AGENTS.md`，按 `Memory/_index.md` 路由读写记忆。规则文本全部按**相对路径**表述，不需要改任何一行。
+`scripts/` 必须一起拷入——门禁脚本不在 `starter/` 里。拷完即用：AI 工具进入工作区自动读到根 `AGENTS.md`，按 `Memory/_index.md` 路由读写记忆。规则文本全部按**相对路径**表述，不需要改任何一行。
 
 ## 两个可选动作（不改也不影响运行）
 
-1. **生成各层索引**（派生物）：`python scripts/mem_index.py --write`——之后新增笔记重跑即可，手工只润色"一句话定位"。
+1. **生成各内容层索引**（派生物；`Decisions/_index.md` 手工维护、不在此列）：`python scripts/mem_index.py --write`——之后新增笔记重跑即可，手工只润色"一句话定位"。
 2. **接入 AI 工具的用户级全局指令**：把 `Memory/Workflows/AI工具自定义指令-完整版.md` 按 `Memory/Workflows/AI工具自定义指令.md` 的落点对照表分发到你的各工具。默认文案相对路径、即贴即用；仅当需要跨工作区全局访问时，才把真源首句替换为一次记忆库绝对路径，再用 `scripts/sync_memory_instructions.py` 一键分发。
 
 ## 自检

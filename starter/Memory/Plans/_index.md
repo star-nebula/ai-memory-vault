@@ -1,7 +1,7 @@
 ---
 type: index
 created: 2026-09-21
-updated: 2026-10-02
+updated: 2026-10-23
 tags: [索引, AI入口, plans]
 ---
 
