@@ -30,7 +30,7 @@ The vault's own workflow, drawn as a **live panel**: fixed layout, packets flowi
 
 1. **Near-zero configuration**. The whole system = Markdown files + stdlib-only scripts. No services, no dependencies, no config files; the entry point is your tool auto-reading the root `AGENTS.md`, and scripts find `Memory/` by walking up the tree — copying it in *is* the install.
 2. **One memory location**. All cross-session information lives in the Markdown vault; writing to any tool-private memory spot is forbidden (`.workbuddy/memory/`, `~/.claude/`, auto-memory…). Tool-side configs only keep a pointer + the iron-rule hook.
-3. **Structured layers**. Memory is not one pile of notes: `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects/<name>/`, plus global `Todo.md`, the write-ledger `Inbox/`, and quarterly `Archive/`.
+3. **Structured layers**. Memory is not one pile of notes: `Preferences` / `Decisions` / `Lessons` / `Workflows` / `Projects/<name>/`, plus global `Todo.md`, the write-ledger `Inbox/`, and quarterly `Archive/`. Plans live inside each project at `working/plan.md`.
 4. **Minimal context by default**. The agent does not browse the memory tree. `memory_boot.py` builds a bounded hot/project pack, and `memory_query.py` returns ranked snippets on demand, so session startup stays small and predictable.
 5. **Closed = moved, not marked**. A finished or cancelled todo is appended to `Projects/<name>/working/completed/YYYY-QX.md` (with date, outcome, reason and source) and **deleted from Todo.md** — never a ✅ or a permanent strikethrough in place. The `todo_audit.py` gate blocks leftovers.
 6. **Only gated steps stay drift-free**. "Remember to sync" has been proven to fail repeatedly. Every gate in this repo was born from a real incident — see [docs/04](docs/04-演化史-门禁背后的事故.md).
@@ -48,7 +48,7 @@ your-vault/                   ← your notes repo / workspace root (a plain Mark
     ├── Rule.md               ← rulebook TOC: operation → section mapping
     ├── rule/                 ← four rule sections (write / wrap-up / sub-agents / vibe-coding)
     ├── Todo.md               ← global todos, grouped by project (no checkboxes)
-    ├── Preferences/ Plans/ Decisions/ Lessons/ Workflows/
+    ├── Preferences/ Decisions/ Lessons/ Workflows/
     ├── Projects/<name>/      ← _overview.md + _state.md + working/journal/YYYY-MM.md + plan.md + completed/YYYY-QX.md
     ├── Inbox/                ← write ledger: every AI write gets logged, then reviewed
     └── Archive/              ← quarterly archive

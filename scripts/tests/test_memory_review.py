@@ -21,7 +21,7 @@ class MemoryReviewTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.memory = Path(self.temp.name) / "Memory"
-        for layer in ("Preferences", "Plans", "Decisions", "Lessons", "Workflows"):
+        for layer in ("Preferences", "Decisions", "Lessons", "Workflows"):
             (self.memory / layer).mkdir(parents=True)
 
     def tearDown(self):
@@ -132,6 +132,17 @@ class MemoryReviewTest(unittest.TestCase):
         self._write(
             "Workflows/instructions.md",
             "# 部署真源\n\n工具路径 `E:\\Tools\\a.exe`。\n",
+        )
+        result = scan_memory_review(self.memory, today=date(2026, 10, 24))
+        self.assertEqual(result["scanned"], 0)
+        self.assertEqual(result["issues"], [])
+
+    def test_legacy_plans_directory_is_not_scanned(self):
+        (self.memory / "Plans").mkdir()
+        self._write(
+            "Plans/legacy.md",
+            "---\ntype: plan\nscope: global\nstatus: active\n---\n"
+            "# 旧计划\n\n旧路径 `E:\\Tools\\legacy.exe`。\n",
         )
         result = scan_memory_review(self.memory, today=date(2026, 10, 24))
         self.assertEqual(result["scanned"], 0)

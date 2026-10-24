@@ -16,6 +16,7 @@
 2. 每次写入后在同日 `Memory/Inbox/YYYY-MM-DD.md` 登记路径与一句话摘要。
 3. 待办统一进 `Memory/Todo.md`；完成 = 追加到 `Projects/<项目名>/working/completed/YYYY-QX.md` 并从 Todo 删除。
 4. 用户手改的文件绝不自动改；决策反转要新建卡并互链。
+5. 计划只落 `Projects/<项目名>/working/plan.md`；根层不设 `Plans/`。
 
 ## 禁止
 

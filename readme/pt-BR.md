@@ -19,7 +19,7 @@
 
 1. **Quase zero configuração** — arquivos Markdown + scripts só com a biblioteca padrão; copiar para um diretório é a instalação inteira.
 2. **Um único lugar para a memória** — na configuração de cada ferramenta vive só um "ponteiro + gancho curto"; o conteúdo, nunca.
-3. **Camadas estruturadas** — `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects` + `Todo.md`·`Inbox/`·`Archive/`.
+3. **Camadas estruturadas** — `Preferences` / `Decisions` / `Lessons` / `Workflows` / `Projects` + `Todo.md`·`Inbox/`·`Archive/`. Os planos ficam dentro de cada projeto em `working/plan.md`.
 4. **Contexto mínimo por padrão** — o agente não navega pela árvore inteira. `memory_boot.py` cria um pacote de inicialização limitado e `memory_query.py` retorna trechos ordenados somente quando necessário.
 5. **Encerrado = movido** — a tarefa concluída ou cancelada vai para `working/completed/YYYY-QX.md` (com data, resultado, motivo e origem) e sai de `Todo.md`; nunca um ✅ ou riscado permanente no lugar.
 6. **Só etapas com porteira permanecem estáveis** — cada porteira nasceu de um incidente real ([docs/04](../docs/04-演化史-门禁背后的事故.md)).

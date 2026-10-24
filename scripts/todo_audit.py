@@ -315,7 +315,7 @@ def scan_audit_backlog(inbox_dir: Path = INBOX_DIR, run_date=None) -> dict:
 
 # —— `scope` 词表（跨层笔记归属字段；口径见 rule/写入与禁止.md 第 5 条）——
 # 合法取值 = {"global"} ∪ Projects/ 下的目录名，**实盘推导、不写死词表**（写死就是第二份事实源）。
-SCOPE_LAYERS = ("Preferences", "Plans", "Decisions", "Lessons", "Workflows")
+SCOPE_LAYERS = ("Preferences", "Decisions", "Lessons", "Workflows")
 SCOPE_RE = re.compile(r"^scope:\s*(\S.*?)\s*$")
 
 

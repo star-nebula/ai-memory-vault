@@ -430,7 +430,7 @@ def hook_text(project, body):
         "- 按需查历史/原因/踩坑：`python \"%s\" \"关键词\" --project %s --cwd .`。" % (query_script, project),
         "- 不预读整棵记忆树；按上面的启动包与检索命令取最小上下文。",
         "- 项目档案：`%s\\_overview.md`；当前状态：`%s\\_state.md`。" % (ov, ov),
-        "- 跨层笔记（`Decisions\\` `Lessons\\` `Plans\\` `Preferences\\` `Workflows\\`）按 `scope` 检索，不按目录通读。",
+        "- 跨层笔记（`Decisions\\` `Lessons\\` `Preferences\\` `Workflows\\`）按 `scope` 检索，不按目录通读。",
         "- Todo 分组不存在时**别静默**：先检索 scope，再问用户是否为本项目建档。",
         "",
     ])

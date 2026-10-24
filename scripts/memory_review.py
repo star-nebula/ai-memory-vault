@@ -18,7 +18,7 @@ from typing import Dict, List, Optional
 from memory_common import find_memory_dir, first_heading, read_text, rel_posix, split_frontmatter
 
 
-LAYERS = ("Preferences", "Plans", "Decisions", "Lessons", "Workflows")
+LAYERS = ("Preferences", "Decisions", "Lessons", "Workflows")
 DEFAULT_MAX_AGE_DAYS = 90
 DEFAULT_LIMIT = 50
 INACTIVE_PREFIXES = ("archived", "superseded", "rejected")

@@ -85,7 +85,7 @@ python memory_review.py --strict
 python memory_review.py --max-age-days 90 --out scripts/_out/memory_review.txt
 ```
 
-- 扫描 `Preferences/`、`Plans/`、`Decisions/`、`Lessons/`、`Workflows/` 的长期笔记。
+- 扫描 `Preferences/`、`Decisions/`、`Lessons/`、`Workflows/` 的长期笔记；项目计划不属于长期笔记层。
 - 报告缺/非法 `status`、`status: review`、易漂移断言缺 `verified_at`、超过阈值未复核，以及未来日期。
 - “易漂移”只按路径、工具行为、环境版本等信号识别；不把普通结论强行要求核验日期。`verified_at` 是笔记级统一复核日期，不同易漂移断言需分时核验时应拆成独立笔记。
 - 默认只报告，`--strict` 才在任一复核项存在时退出 1；不自动改正文或伪造日期。

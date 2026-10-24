@@ -28,7 +28,7 @@
 
 - 待办：`Memory/Todo.md`；完成 = 移走，追加到 `Projects/<项目名>/working/completed/YYYY-QX.md` 后从 Todo 删除。
 - 过程历史：`Projects/<项目名>/working/journal/YYYY-MM.md`；默认不读全文，需要时用 `memory_query.py --include-history`。
-- 长期知识：`Preferences/`、`Plans/`、`Decisions/`、`Lessons/`、`Workflows/`；按任务检索，不按目录通读。
+- 长期知识：`Preferences/`、`Decisions/`、`Lessons/`、`Workflows/`；按任务检索，不按目录通读。计划只落当前项目 `working/plan.md`。
 - `Memory/BOOT.md` 是唯一常驻热层，只放稳定、跨项目、短小的内容。
 
 ## 同名文件消歧（易混清单）

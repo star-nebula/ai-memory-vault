@@ -127,6 +127,18 @@ class TodoAuditShardTest(unittest.TestCase):
             result["redundant"],
         )
 
+    def test_legacy_plans_layer_is_not_scope_audited(self):
+        plans = self.memory / "Plans"
+        plans.mkdir()
+        (plans / "legacy.md").write_text(
+            "---\ntype: plan\nscope: missing-project\n---\n# legacy\n",
+            encoding="utf-8",
+        )
+        with patch.object(todo_audit, "PROJECTS_DIR", self.projects), \
+                patch.object(todo_audit, "MEMORY_DIR", self.memory):
+            result = todo_audit.scan_scope_vocab()
+        self.assertEqual(result["bad"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

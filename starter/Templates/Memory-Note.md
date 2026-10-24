@@ -8,8 +8,9 @@ tags: []
 
 # <一句话标题：脱离本次会话也能独立读懂>
 
-<!-- scope 不在这里预填：只有跨层五层（Preferences / Plans / Decisions / Lessons / Workflows）才填，
+<!-- scope 不在这里预填：只有跨层四层（Preferences / Decisions / Lessons / Workflows）才填，
      Projects/ 内、Inbox 登记簿与 working/ 台账一律不填。判据正本 = 第 5 条，此处不复制口径。 -->
+<!-- 计划不是跨层长期笔记：统一写 Projects/<项目名>/working/plan.md，不建根级 Plans/ / type: plan。 -->
 <!-- 决策类笔记把 `status` 改为 proposed / implemented / rejected-<理由> / superseded-by-[[新笔记]] / archived-YYYY-QX，
      并补正文「备选方案」节；规则反转 = 新建笔记指向旧笔记，不覆盖原件。 -->
 <!-- 只有断言涉及路径 / 文件存在性 / 工具行为 / 环境版本时才加 `verified_at: YYYY-MM-DD`；
