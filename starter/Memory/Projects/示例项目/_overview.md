@@ -3,7 +3,7 @@ type: project-fact
 created: 2026-10-02
 updated: 2026-10-02
 tags: [示例, 项目概况]
-summary: 示例项目：演示项目层三件套结构与 Todo 分组对应关系的占位项目，接入后改名使用。
+summary: 示例项目：演示项目层 `_overview` + `_state` + working 台账与 Todo 分组对应关系的占位项目，接入后改名使用。
 ---
 
 # 示例项目 · 项目概况

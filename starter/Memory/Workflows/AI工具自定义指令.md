@@ -24,8 +24,8 @@ tags: [分发钩子, 自定义指令, 记忆库, AI工具接入]
 
 ```text
 记忆库规则见工作区根 `Memory/`（Agent-first）。
-普通任务不默认扫描记忆；项目任务运行 `python scripts/memory_boot.py --cwd <项目根>`；
-查历史/原因/踩坑运行 `python scripts/memory_query.py "关键词" --cwd <项目根>`。
+普通任务不默认扫描记忆；项目任务运行 `python scripts/memory_boot.py --cwd .`；
+查历史/原因/踩坑运行 `python scripts/memory_query.py "关键词" --cwd .`。
 不要读 `Memory/_index.md` 或各层 `_index.md` 作为启动上下文。
 写入 / 收尾前读 `Memory/Rule.md` 映射的分节，并在同日 `Memory/Inbox/` 登记。
 记忆唯一落点 = `Memory/`，禁写任何工具私有记忆位。

@@ -14,25 +14,28 @@
 ## `memory_boot.py` —— Agent 启动包
 
 ```bash
-python memory_boot.py --cwd <项目根> --json
-python memory_boot.py --project <项目名> --budget 6000
+python memory_boot.py --cwd . --json
+python memory_boot.py --project demo --budget 6000
 ```
 
 - 普通任务不自动扫描记忆库；项目任务只生成一个小型启动包。
-- 输入固定：`BOOT.md` + 当前项目 `_overview.md` + `_state.md` + `Todo.md` 当前项目切片。
+- 输入固定：`BOOT.md` + 当前项目 `_overview.md` + `_state.md` + `Todo.md` 当前项目切片；Todo 可能被完整读取以切片，但不会整份注入。
 - 不读取 `_index.md` 或各层 `_index.md`。
-- `--budget` 是硬上限；`--json` 返回 `chars`、`original_chars`、`truncated` 与实际读取的文件列表。
+- `--budget` 约束返回的 `text` 字段；JSON 元数据另计，不会被重复计入 text。`--json` 返回 `chars`、`source_chars`、`assembled_chars`、`truncated` 与实际读取文件列表。
 
 ## `memory_query.py` —— 有界检索
 
 ```bash
-python memory_query.py "关键词" --cwd <项目根> --limit 5 --budget 5000
+python memory_query.py "关键词" --cwd . --limit 5 --budget 5000
 python memory_query.py "旧方案" --include-inactive --include-history --json
+python memory_query.py "关键词" --all-projects --json
 ```
 
-- 默认只搜活跃笔记，排除 archived/superseded；`--include-inactive` 显式放开。
+- 默认只排除 archived/superseded，其他 status 保留；`--include-inactive` 显式放开。
+- 无法识别项目时默认只搜 `scope: global`；跨项目检索必须显式加 `--all-projects`。
+- 指定项目时，`Projects/<项目>` 之外的项目树不会进入结果；跨层笔记必须 `scope` 为该项目的名称或 `global`。
 - 默认跳过 `Inbox/`、`Archive/`、`working/`；查历史时加 `--include-history`。
-- 返回路径、类型、scope、status、更新日期和片段，不展开整篇笔记。
+- `text` 返回路径、类型、scope、status、更新日期和片段，不展开整篇笔记；`--json` 的 `matches` 只放元数据，避免重复正文。
 ## `mem_index.py` —— 索引生成 / 校验（门禁 ①⑤）
 
 **除 `Decisions/` 外**各层 `_index.md` 的**派生器 + 门禁**。背景：手工索引必然漂移，索引必须是派生物；`Decisions/_index.md` 专用格式、人工维护，只可 `--check`。
@@ -63,7 +66,7 @@ python todo_audit.py --inbox <目录> --audit-date YYYY-MM-DD   # 积压计数 f
 ```
 
 - **词表不写在脚本里**：`type` 合法值机读自 `Memory/rule/写入与禁止.md` 第 5 条的括号清单（解析失败 = 退出码 1，不静默通过）；`scope` 合法值 = `Projects/` 实盘目录名 ∪ `global`，实盘推导
-- **阈值在脚本、数字不进文档**：`LIMIT_INDEX` / `LIMIT_TODO` / `LIMIT_OVERVIEW` / `LIMIT_TRIO_WORST` / `LIMIT_STAGING_CHARS` 是策略常量；实测只进报告
+- **阈值在脚本、数字不进文档**：`LIMIT_BOOT` / `LIMIT_INDEX` / `LIMIT_OVERVIEW` / `LIMIT_STATE` / `LIMIT_BOOT_APPROX` / `LIMIT_STAGING_CHARS` 是策略常量；实测只进报告
 - **暂存层判压面只收 `journal.md`**：`working/completed.md` 属终态层，只进「最重几份」观测面，不判压
 - **每日 Inbox 审核积压**（报告第十节）：`Inbox/` 根下登记日期早于运行当天的文件份数；**只报不拦**，成因可能是审核任务没跑，也可能是审过但「待本人决定」把整份扣住
 - 默认报告写文件而非 stdout（Windows 控制台 GBK 吞输出的环境教训）；`-o` 可改落点

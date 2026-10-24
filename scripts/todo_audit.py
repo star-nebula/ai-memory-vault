@@ -78,6 +78,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+from memory_common import DEFAULT_BUDGET as BOOT_DEFAULT_BUDGET, SECTION_LIMITS as BOOT_SECTION_LIMITS, normalize_group_title
+
 # Windows 控制台默认 GBK，本脚本输出含中文与符号，不加这行会 UnicodeEncodeError 中断。
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -110,11 +112,11 @@ INBOX_DIR = MEMORY_DIR / "Inbox"          # 每日审核的现场（只读扫描
 INBOX_DAY_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.md$")
 
 # —— Agent 启动成本阈值（策略常量；改这里，不改文档）——
-LIMIT_BOOT = 3000       # BOOT.md：唯一常驻热层，超了必须删除或下沉
+LIMIT_BOOT = BOOT_SECTION_LIMITS["boot"]
 LIMIT_INDEX = 5000      # _index.md：生成/校验目录，不计入启动成本
-LIMIT_TODO = 8000       # Todo.md：源文件体量；启动只取当前项目切片
-LIMIT_OVERVIEW = 4000   # Projects/<名>/_overview.md：只留定位/关键路径/关联资产/状态
-LIMIT_BOOT_APPROX = 6000  # 热层 + 最大 overview 的启动近似上限（实际切片由 memory_boot 控制）
+LIMIT_OVERVIEW = BOOT_SECTION_LIMITS["overview"]
+LIMIT_STATE = BOOT_SECTION_LIMITS["state"]
+LIMIT_BOOT_APPROX = BOOT_DEFAULT_BUDGET
 # 暂存层体量阈值（**字符数**）：超过即该把旧段压成「阶段小结」（只留结论 + wikilink）。
 # 原写死在 `rule/写入与禁止.md` 第 3 条与 `Todo.md` 正文里（同一事实两份文档各存一处），
 # 2026-09-30 用户裁定「数字不进文档」后移入此处——文档只留指针，实测只进本报告「八、」段。
@@ -132,24 +134,31 @@ def char_len(path: Path) -> int:
 
 def scan_opening_cost() -> dict:
     overviews = []
+    states = []
     if PROJECTS_DIR.is_dir():
         for ov in sorted(PROJECTS_DIR.glob("*/_overview.md")):
             overviews.append({"project": ov.parent.name, "chars": char_len(ov)})
+        for st in sorted(PROJECTS_DIR.glob("*/_state.md")):
+            states.append({"project": st.parent.name, "chars": char_len(st)})
     overs = sorted([x for x in overviews if x["chars"] > LIMIT_OVERVIEW], key=lambda x: -x["chars"])
+    state_overs = sorted([x for x in states if x["chars"] > LIMIT_STATE], key=lambda x: -x["chars"])
     boot_chars = char_len(BOOT_PATH)
     index_chars = char_len(INDEX_PATH)
     worst_overview = max((x["chars"] for x in overviews), default=0)
+    worst_state = max((x["chars"] for x in states), default=0)
     return {
         "boot_chars": boot_chars,
         "boot_over": boot_chars > LIMIT_BOOT,
         "index_chars": index_chars,
         "index_over": index_chars > LIMIT_INDEX,
         "worst_overview": worst_overview,
-        "boot_approx_chars": boot_chars + worst_overview,
+        "worst_state": worst_state,
+        "boot_approx_chars": boot_chars + worst_overview + worst_state,
         "overview_offenders": overs,
+        "state_offenders": state_overs,
         "overview_total": len(overviews),
+        "state_total": len(states),
     }
-
 
 # 强完成信号：命中即视为「已标完成」→ 必须已移走
 STRONG_SIGNALS = ("✅", "✔", "已执行完毕", "已完成：", "已完成:", "已结清", "已归档")
@@ -379,10 +388,8 @@ def read_text(path: Path) -> str:
 
 
 def norm_group(title: str) -> str:
-    """分组标题 → 候选目录名：去首尾空白、去掉结尾的括号补充说明。"""
-    t = title.strip()
-    t = TRAILING_PAREN.sub("", t).strip()
-    return t
+    """Compatibility wrapper for the shared Todo-heading normalizer."""
+    return normalize_group_title(title)
 
 
 def project_dirs() -> dict[str, Path]:
@@ -433,7 +440,8 @@ def scan_todo_claims(todo_path: Path) -> dict:
 
 
 def scan_todo(todo_path: Path) -> dict:
-    lines = read_text(todo_path).splitlines()
+    todo_text = read_text(todo_path)
+    lines = todo_text.splitlines()
     dirs = project_dirs()
     dirs_lower = {k.lower(): k for k in dirs}
 
@@ -442,13 +450,12 @@ def scan_todo(todo_path: Path) -> dict:
     groups: list[dict] = []
     sub_groups = 0
     cur_group = "(文件头)"
-    char_total = 0
+    char_total = len(todo_text)
     char_by_group: dict[str, int] = {}
     item_count = 0
 
     for i, raw in enumerate(lines, start=1):
         line = raw.rstrip("\n")
-        char_total += len(line)
         char_by_group[cur_group] = char_by_group.get(cur_group, 0) + len(line)
         stripped = line.strip()
         if not stripped:
@@ -508,6 +515,11 @@ def scan_todo(todo_path: Path) -> dict:
         if g["matched_dir"] and g["completed_md"] is False
     ]
     unmapped = [g for g in groups if g["matched_dir"] is None]
+    missing_state = [
+        {"group": g["title"], "dir": g["matched_dir"]}
+        for g in groups
+        if g["matched_dir"] and not (PROJECTS_DIR / g["matched_dir"] / "_state.md").is_file()
+    ]
 
     return {
         "todo": str(todo_path),
@@ -520,6 +532,7 @@ def scan_todo(todo_path: Path) -> dict:
         "retired": retired,
         "unmapped_groups": unmapped,
         "missing_completed": missing_completed,
+        "missing_state": missing_state,
         "cost": scan_opening_cost(),
         "scope": scan_scope_vocab(),
     }
@@ -568,6 +581,12 @@ def render(r: dict) -> str:
             out.append(f"- `Projects/{m['dir']}/working/completed.md`（分组「{m['group']}」）")
     else:
         out.append("被 Todo 引用的项目均有 `completed.md`。")
+    if r.get("missing_state"):
+        out.append(f"**缺项目 `_state.md` 的活跃项目 {len(r['missing_state'])} 个**（报告项：项目状态无法进入启动包）：")
+        for m in r["missing_state"]:
+            out.append(f"- `Projects/{m['dir']}/_state.md`（分组「{m['group']}」）")
+    else:
+        out.append("被 Todo 引用的项目均有 `_state.md`。")
     out.append("")
 
     out.append("## 三、合法留档（不拦门禁）")
@@ -597,17 +616,23 @@ def render(r: dict) -> str:
         approx = c["boot_approx_chars"]
         out.append(f"- `Memory/BOOT.md`：{c['boot_chars']} 字符（限 {LIMIT_BOOT}）{'**超标**' if c['boot_over'] else 'ok'}")
         out.append(f"- `Memory/_index.md`：{c['index_chars']} 字符（目录派生物，不计入启动成本）")
-        out.append(f"- `Memory/Todo.md`：{r['char_total']} 字符（源文件；启动只取当前项目切片，限 {LIMIT_TODO}）")
+        out.append(f"- `Memory/Todo.md`：{r['char_total']} 字符（源文件；启动只取当前项目切片，不设源文件硬限）")
         out.append(f"- `Projects/*/_overview.md`：共 {c['overview_total']} 份，最大 {c['worst_overview']} 字符（单份限 {LIMIT_OVERVIEW}）")
         if c["overview_offenders"]:
-            out.append(f"  **待瘦身 {len(c['overview_offenders'])} 份**（细节移 `working/journal.md`/`plan.md`，overview 只留定位·关键路径·关联资产·状态）：")
+            out.append(f"  **待瘦身 {len(c['overview_offenders'])} 份**（细节移 `working/journal.md`/`plan.md`）：")
             for o in c["overview_offenders"]:
                 out.append(f"  - `{o['project']}` {o['chars']} 字符")
         else:
             out.append("  无单份超标。")
-        out.append(f"- 启动近似上限：{approx} 字符（BOOT + 最大 overview；限 {LIMIT_BOOT_APPROX}）{'**超标**' if approx > LIMIT_BOOT_APPROX else 'ok'}")
+        out.append(f"- `Projects/*/_state.md`：共 {c['state_total']} 份，最大 {c['worst_state']} 字符（单份限 {LIMIT_STATE}）")
+        if c["state_offenders"]:
+            for o in c["state_offenders"]:
+                out.append(f"  - `{o['project']}` {o['chars']} 字符")
+        else:
+            out.append("  无单份超标。")
+        out.append(f"- 启动近似上限：{approx} 字符（BOOT + 最大 overview + 最大 state；限 {LIMIT_BOOT_APPROX}）{'**超标**' if approx > LIMIT_BOOT_APPROX else 'ok'}")
         out.append("")
-        out.append("> 实际启动包由 `memory_boot.py` 生成并受 `--budget` 控制；本段只做存量扫描。")
+        out.append("> 实际启动包由 `memory_boot.py` 生成；`--budget` 约束 text 字段，JSON 元数据另计。")
         out.append("> 季度维护只看待瘦身项数与超限项是否下降。")
     out.append("")
 
@@ -788,6 +813,7 @@ def main() -> int:
     scope_violations = len(scope.get("bad") or []) + len(scope.get("redundant") or [])
     cost_violations = (
         len(cost.get("overview_offenders") or [])
+        + len(cost.get("state_offenders") or [])
         + (1 if cost.get("boot_over") else 0)
         + (1 if cost.get("boot_approx_chars", 0) > LIMIT_BOOT_APPROX else 0)
     )

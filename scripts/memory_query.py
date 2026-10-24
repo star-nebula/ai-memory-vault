@@ -4,6 +4,9 @@
 Search is deliberately small and deterministic: no LLM, no embedding, no whole
 note expansion. Results carry paths and snippets so the caller can decide
 whether one note deserves a full read.
+
+Budget semantics: ``--budget`` limits the rendered ``text`` field. JSON
+metadata is intentionally separate and may be larger than the text budget.
 """
 
 from __future__ import annotations
@@ -16,6 +19,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from memory_common import (
+    InvalidProjectError,
     detect_project,
     find_memory_dir,
     first_heading,
@@ -25,6 +29,7 @@ from memory_common import (
     rel_posix,
     split_frontmatter,
     truncate_text,
+    validate_project_name,
 )
 
 
@@ -33,7 +38,12 @@ DEFAULT_BUDGET = 5000
 SNIPPET_CHARS = 420
 SKIP_DIRS = {"__pycache__", ".git", ".obsidian", ".trash", "scripts", "Templates", "rule"}
 SKIP_FILES = {"_index.md", "README.md", "AGENTS.md", "Rule.md", "BOOT.md"}
-ACTIVE_STATUS = {"", "active", "proposed", "implemented", "accepted"}
+INACTIVE_STATUSES = ("archived", "superseded")
+
+
+def _is_inactive(status: str) -> bool:
+    value = (status or "").strip().lower()
+    return any(value.startswith(prefix) for prefix in INACTIVE_STATUSES)
 
 
 def _iter_notes(memory_dir: Path, include_history: bool):
@@ -72,7 +82,11 @@ def search_memory(
     limit: int = DEFAULT_LIMIT,
     include_inactive: bool = False,
     include_history: bool = False,
+    all_projects: bool = False,
 ) -> Dict[str, object]:
+    if project:
+        project = validate_project_name(memory_dir, project)
+
     terms = query_terms(query)
     if not terms:
         return {"query": query, "project": project, "matches": [], "total_before_budget": 0}
@@ -80,18 +94,26 @@ def search_memory(
     type_filter = {t.strip().lower() for t in types or [] if t.strip()}
     matches: List[Dict[str, object]] = []
 
-    for path, _ in _iter_notes(memory_dir, include_history):
+    for path, rel_parts in _iter_notes(memory_dir, include_history):
         text = read_text(path)
         frontmatter, body = split_frontmatter(text)
         typ = frontmatter.get("type", "").lower()
         if type_filter and typ not in type_filter:
             continue
         status = frontmatter.get("status", "").lower()
-        if not include_inactive and status not in ACTIVE_STATUS:
+        if not include_inactive and _is_inactive(status):
             continue
         scope = frontmatter.get("scope", "")
-        if project and scope and scope not in (project, "global"):
-            continue
+
+        in_project_tree = len(rel_parts) >= 2 and rel_parts[0] == "Projects"
+        if project:
+            if in_project_tree and rel_parts[1] != project:
+                continue
+            if not in_project_tree and scope not in (project, "global"):
+                continue
+        elif not all_projects:
+            if in_project_tree or scope != "global":
+                continue
 
         title = frontmatter.get("title") or first_heading(body, path.stem)
         headings = "\n".join(re.findall(r"^#{1,6}\s+(.+?)\s*$", body, re.M))
@@ -154,7 +176,8 @@ def _render_text(result: Dict[str, object], budget: int) -> str:
         if len(text) <= budget:
             return text
         matches.pop()
-    return "# Memory Query\nquery: %s\n\nNo bounded results within budget.\n" % result["query"]
+    fallback = "# Memory Query\nquery: %s\n\nNo bounded results within budget.\n" % result["query"]
+    return truncate_text(fallback, budget)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -162,13 +185,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("query", help="keywords or a short phrase")
     parser.add_argument("--memory-dir", help="explicit Memory/ directory")
     parser.add_argument("--cwd", help="working directory used for project detection")
-    parser.add_argument("--project", help="project scope; global notes remain eligible")
+    parser.add_argument("--project", help="project scope (single directory name)")
+    parser.add_argument("--all-projects", action="store_true", help="allow project-tree search when no project is detected")
     parser.add_argument("--types", help="comma-separated frontmatter types")
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
-    parser.add_argument("--budget", type=int, default=DEFAULT_BUDGET)
-    parser.add_argument("--include-inactive", action="store_true")
-    parser.add_argument("--include-history", action="store_true")
-    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--budget", type=int, default=DEFAULT_BUDGET, help="maximum characters in the text field")
+    parser.add_argument("--include-inactive", action="store_true", help="include archived/superseded notes")
+    parser.add_argument("--include-history", action="store_true", help="include Inbox/Archive/working files")
+    parser.add_argument("--json", action="store_true", help="emit metadata plus bounded text as JSON")
     args = parser.parse_args(argv)
 
     memory_dir = find_memory_dir(args.memory_dir, start=args.cwd)
@@ -179,25 +203,39 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("limit and budget must be positive", file=sys.stderr)
         return 2
 
-    project = args.project or detect_project(memory_dir, cwd=args.cwd)
-    types = args.types.split(",") if args.types else None
-    result = search_memory(
-        memory_dir=memory_dir,
-        query=args.query,
-        project=project,
-        types=types,
-        limit=args.limit,
-        include_inactive=args.include_inactive,
-        include_history=args.include_history,
-    )
+    try:
+        project = args.project or detect_project(memory_dir, cwd=args.cwd)
+        types = args.types.split(",") if args.types else None
+        result = search_memory(
+            memory_dir=memory_dir,
+            query=args.query,
+            project=project,
+            types=types,
+            limit=args.limit,
+            include_inactive=args.include_inactive,
+            include_history=args.include_history,
+            all_projects=args.all_projects,
+        )
+    except InvalidProjectError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
     text = _render_text(result, args.budget)
 
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     if args.json:
         payload = dict(result)
+        payload["matches"] = [
+            {k: v for k, v in match.items() if k != "snippet"}
+            for match in result.get("matches", [])
+        ]
+        payload["budget"] = args.budget
+        payload["budget_scope"] = "text"
+        full_text = _render_text(result, 10 ** 9)
         payload["text"] = text
         payload["chars"] = len(text)
+        payload["truncated"] = len(text) < len(full_text)
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         print(text, end="")

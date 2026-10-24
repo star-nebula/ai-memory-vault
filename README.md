@@ -65,7 +65,7 @@ copy everything under starter/ into the root of my memory-vault workspace — if
 have a notes repo use its root, otherwise create an empty directory. Also copy the
 scripts/ directory into that workspace (the gates are not inside starter/).
 Then run python scripts/mem_index.py --write in that directory to build the indexes.
-Run python scripts/memory_boot.py --project <name> --json and python scripts/memory_query.py "test" --json. Finally read the workspace-root AGENTS.md, and tell me back:
+Run python scripts/memory_boot.py --cwd . --json and python scripts/memory_query.py "test" --json. Finally read the workspace-root AGENTS.md, and tell me back:
 when you will load memory, how you will query it, and how you will write it.
 ```
 

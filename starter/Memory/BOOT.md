@@ -12,8 +12,8 @@
 ## 工作边界
 
 - 普通任务不默认扫描记忆库。
-- 项目任务先运行 `python scripts/memory_boot.py --cwd <项目根>`。
-- 查历史/原因/踩坑运行 `python scripts/memory_query.py "关键词" --cwd <项目根>`。
+- 项目任务先运行 `python scripts/memory_boot.py --cwd .`。
+- 查历史/原因/踩坑运行 `python scripts/memory_query.py "关键词" --cwd .`。
 - 不读 `_index.md` 或各层 `_index.md` 作为启动上下文。
 
 ## 维护

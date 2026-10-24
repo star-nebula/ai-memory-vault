@@ -7,10 +7,10 @@
 
 1. **普通问答 / 单轮任务**：不要默认扫描记忆库。只有任务涉及用户偏好、项目背景、历史决策或排障时，才读 `Memory/BOOT.md`。
 2. **项目任务**：先运行
-   `python scripts/memory_boot.py --cwd <项目根或当前目录>`
+   `python scripts/memory_boot.py --cwd .`
    它只返回：全局热记忆 + 当前项目 `_overview.md` + `_state.md` + 当前项目 Todo 切片。
 3. **查原因 / 查历史 / 查踩坑**：运行
-   `python scripts/memory_query.py "关键词" --cwd <项目根或当前目录>`，
+   `python scripts/memory_query.py "关键词" --cwd .`，
    默认只返回前几条命中片段，不展开整篇笔记。
 4. **禁止在启动时读** `Memory/_index.md` 或各层 `_index.md`；它们是校验用派生物，不是 Agent 启动页。
 5. 同一会话中，启动包只加载一次；除非用户要求刷新或记忆发生变化，否则不要反复读取同一文件。

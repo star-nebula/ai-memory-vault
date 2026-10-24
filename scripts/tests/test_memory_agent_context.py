@@ -6,13 +6,15 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 
+import memory_boot
 from memory_boot import build_boot_pack
-from memory_common import detect_project, extract_todo_section
+from memory_common import InvalidProjectError, detect_project, extract_todo_section
 from memory_query import search_memory
 
 
@@ -22,7 +24,9 @@ class MemoryAgentContextTest(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.memory = self.root / "workspace" / "Memory"
         self.project = self.memory / "Projects" / "demo"
+        self.other = self.memory / "Projects" / "other"
         self.project.mkdir(parents=True)
+        self.other.mkdir(parents=True)
         (self.memory / "Decisions").mkdir()
         (self.memory / "Lessons").mkdir()
         (self.memory / "BOOT.md").write_text(
@@ -40,6 +44,10 @@ class MemoryAgentContextTest(unittest.TestCase):
         )
         (self.project / "_state.md").write_text(
             "---\ntype: project-fact\n---\n# State\n\nCurrent goal: validate P0.\n",
+            encoding="utf-8",
+        )
+        (self.other / "_overview.md").write_text(
+            "---\ntype: project-fact\n---\n# Other\n\n启动读取 other project.\n",
             encoding="utf-8",
         )
         (self.memory / "Lessons" / "bounded-memory.md").write_text(
@@ -62,28 +70,71 @@ class MemoryAgentContextTest(unittest.TestCase):
         (code_root / "AGENTS.md").write_text("**当前项目名：`demo`**\n", encoding="utf-8")
         self.assertEqual(detect_project(self.memory, cwd=str(code_root)), "demo")
 
+    def test_project_detection_uses_code_root_not_group(self):
+        code_root = self.root / "code" / "Projects" / "personal" / "demo"
+        source = code_root / "src"
+        source.mkdir(parents=True)
+        (code_root / ".git").mkdir()
+        self.assertEqual(detect_project(self.memory, cwd=str(source)), "demo")
+
+    def test_prose_about_project_name_is_not_a_declaration(self):
+        code_root = self.root / "code" / "demo"
+        code_root.mkdir(parents=True)
+        (code_root / "AGENTS.md").write_text("当前项目名不预填：按工作目录判断。\n", encoding="utf-8")
+        self.assertEqual(detect_project(self.memory, cwd=str(code_root)), "demo")
+
+    def test_invalid_project_declaration_fails_closed(self):
+        code_root = self.root / "code" / "bad"
+        code_root.mkdir(parents=True)
+        (code_root / "AGENTS.md").write_text("**当前项目名：`../../outside`**\n", encoding="utf-8")
+        with self.assertRaises(InvalidProjectError):
+            detect_project(self.memory, cwd=str(code_root))
+
+    def test_explicit_project_traversal_is_rejected(self):
+        outside = self.root / "outside"
+        outside.mkdir()
+        (outside / "_overview.md").write_text("OUTSIDE_SECRET_CONTENT", encoding="utf-8")
+        with self.assertRaises(InvalidProjectError):
+            build_boot_pack(self.memory, project="../../outside")
+        with self.assertRaises(InvalidProjectError):
+            search_memory(self.memory, "secret", project="../../outside")
+
     def test_todo_slice_excludes_other_projects(self):
         text = (self.memory / "Todo.md").read_text(encoding="utf-8")
         section = extract_todo_section(text, "demo")
         self.assertIn("finish bounded retrieval", section)
         self.assertNotIn("unrelated", section)
 
+    def test_todo_slice_accepts_trailing_parenthetical(self):
+        section = extract_todo_section("## demo（说明）\n\n- task\n", "demo")
+        self.assertIn("- task", section)
+
     def test_boot_pack_is_small_and_does_not_read_index(self):
-        pack = build_boot_pack(self.memory, project="demo", budget=6000)
+        with patch("memory_boot.read_text", wraps=memory_boot.read_text) as read_mock:
+            pack = build_boot_pack(self.memory, project="demo", budget=6000)
         text = pack["text"]
         self.assertIn("Global hot memory", text)
         self.assertIn("Project overview", text)
         self.assertIn("Project state", text)
         self.assertIn("finish bounded retrieval", text)
         self.assertNotIn("SHOULD_NOT_APPEAR_IN_BOOT", text)
+        self.assertNotIn("type: project-fact", text)
         self.assertLessEqual(pack["chars"], 6000)
         self.assertIn("BOOT.md", pack["files"])
+        read_names = [call.args[0].name for call in read_mock.call_args_list]
+        self.assertNotIn("_index.md", read_names)
 
-    def test_boot_pack_honors_budget(self):
+    def test_boot_pack_honors_text_budget(self):
         (self.project / "_overview.md").write_text("A" * 5000, encoding="utf-8")
         pack = build_boot_pack(self.memory, project="demo", budget=1200)
         self.assertLessEqual(pack["chars"], 1200)
         self.assertTrue(pack["truncated"])
+        self.assertGreater(pack["source_chars"], pack["chars"])
+
+    def test_tiny_boot_budget_is_still_hard(self):
+        pack = build_boot_pack(self.memory, project="demo", budget=5)
+        self.assertLessEqual(len(pack["text"]), 5)
+        self.assertLessEqual(pack["chars"], 5)
 
     def test_query_finds_active_note_and_excludes_archived_by_default(self):
         result = search_memory(self.memory, "启动读取", project="demo")
@@ -110,20 +161,45 @@ class MemoryAgentContextTest(unittest.TestCase):
         paths = [m["path"] for m in result["matches"]]
         self.assertNotIn("Lessons/other-project.md", paths)
 
-    def test_query_cli_respects_budget(self):
-        completed = subprocess.run(
-            [sys.executable, str(SCRIPTS / "memory_query.py"), "启动读取",
-             "--memory-dir", str(self.memory), "--project", "demo",
-             "--json", "--budget", "150"],
-            check=True,
-            capture_output=True,
-            text=True,
+    def test_query_excludes_other_project_tree(self):
+        result = search_memory(self.memory, "启动读取", project="demo")
+        paths = [m["path"] for m in result["matches"]]
+        self.assertNotIn("Projects/other/_overview.md", paths)
+
+    def test_query_without_project_defaults_to_global_only(self):
+        result = search_memory(self.memory, "启动读取")
+        self.assertEqual(result["matches"], [])
+        result_all = search_memory(self.memory, "启动读取", all_projects=True)
+        self.assertTrue(result_all["matches"])
+
+    def test_review_status_is_searchable_by_default(self):
+        (self.memory / "Lessons" / "review-status.md").write_text(
+            "---\ntype: lesson\nscope: demo\nstatus: review\n---\n# 启动读取\n\n待复核。\n",
             encoding="utf-8",
         )
-        payload = json.loads(completed.stdout)
-        self.assertLessEqual(payload["chars"], 150)
+        result = search_memory(self.memory, "启动读取", project="demo")
+        paths = [m["path"] for m in result["matches"]]
+        self.assertIn("Lessons/review-status.md", paths)
 
-    def test_cli_returns_json_with_bounded_text(self):
+    def test_project_query_fails_closed_without_scope(self):
+        (self.memory / "Lessons" / "no-scope.md").write_text(
+            "---\ntype: lesson\nstatus: active\n---\n# 启动读取\n\n无 scope。\n",
+            encoding="utf-8",
+        )
+        result = search_memory(self.memory, "启动读取", project="demo")
+        paths = [m["path"] for m in result["matches"]]
+        self.assertNotIn("Lessons/no-scope.md", paths)
+
+    def test_bom_frontmatter_is_parsed_and_can_be_filtered(self):
+        (self.memory / "Lessons" / "bom.md").write_text(
+            "---\ntype: lesson\nscope: other\nstatus: archived-2026-Q3\n---\n# 启动读取\n\nBOM 文件。\n",
+            encoding="utf-8-sig",
+        )
+        result = search_memory(self.memory, "启动读取", project="demo")
+        paths = [m["path"] for m in result["matches"]]
+        self.assertNotIn("Lessons/bom.md", paths)
+
+    def test_cli_returns_compact_json(self):
         completed = subprocess.run(
             [sys.executable, str(SCRIPTS / "memory_boot.py"),
              "--memory-dir", str(self.memory), "--project", "demo", "--json", "--budget", "1000"],
@@ -135,6 +211,21 @@ class MemoryAgentContextTest(unittest.TestCase):
         payload = json.loads(completed.stdout)
         self.assertEqual(payload["project"], "demo")
         self.assertLessEqual(payload["chars"], 1000)
+        self.assertTrue(all("content" not in section for section in payload["sections"]))
+
+    def test_query_cli_respects_text_budget(self):
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPTS / "memory_query.py"), "启动读取",
+             "--memory-dir", str(self.memory), "--project", "demo",
+             "--json", "--budget", "150"],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        payload = json.loads(completed.stdout)
+        self.assertLessEqual(payload["chars"], 150)
+        self.assertEqual(payload["budget_scope"], "text")
 
 
 if __name__ == "__main__":

@@ -5,8 +5,8 @@
 ## 读取
 
 - **热层**：`BOOT.md`，只放稳定、跨项目、短小的内容。
-- **项目启动**：`python scripts/memory_boot.py --cwd <项目根或当前目录>`。
-- **按需检索**：`python scripts/memory_query.py "关键词" --cwd <项目根或当前目录>`。
+- **项目启动**：`python scripts/memory_boot.py --cwd .`。
+- **按需检索**：`python scripts/memory_query.py "关键词" --cwd .`。
 - `_index.md` 和各层 `_index.md` 是生成/校验用目录；Agent 启动时不读，只有脚本维护时使用。
 - 记忆是写下当天的快照；涉及路径、文件存在性、工具行为时，引用前先复测。
 

@@ -1,13 +1,13 @@
 ---
 type: index
 created: 2026-10-02
-updated: 2026-10-02
-tags: [索引, 派生物, 记忆库, 分层路由, 门禁]
+updated: 2026-10-24
+tags: [索引, 地图, 记忆库, 分层路由, 门禁]
 ---
 
-# Memory 目录（机器派生物：Agent 启动不读）
+# Memory 目录（手工地图：Agent 启动不读）
 
-> **本文件是生成/校验用目录，不是 Agent 启动入口。**
+> **本文件是手工维护的地图与校验辅助页，不是 Agent 启动入口。**
 > Agent 启动只运行 `scripts/memory_boot.py`；需要查历史/原因/踩坑时运行 `scripts/memory_query.py`。
 > 本页供 `mem_index.py` 校验结构与诊断使用；正常任务不要读取整页。
 > 权威执行规则见 `Rule.md`（目录页：操作→分节映射）+ `rule/` 分节文件（写入/收尾前按映射读对应分节）。
@@ -30,7 +30,7 @@ tags: [索引, 派生物, 记忆库, 分层路由, 门禁]
 | `Decisions/` | 决策记录（背景 → 选择 → 备选方案，附日期） | 涉架构 / 技术选型，想知道「为什么这么定」 | `Decisions/_index.md`（专用格式，手工维护） |
 | `Lessons/` | 踩坑与解法 | 踩坑 / 排障 / 找已知解法 | `Lessons/_index.md` |
 | `Workflows/` | 固定流程手册 / SOP | 要找固定流程 / SOP / 操作手册 | `Workflows/_index.md` |
-| `Projects/<项目名>/` | 项目记忆（必含 `_overview.md` 与 `_state.md`；历史在 `working/`） | 项目启动与当前状态 | `Projects/_index.md` |
+| `Projects/<项目名>/` | 项目记忆（活跃项目必含 `_overview.md` 与 `_state.md`；归档/资料型可缺省 state；历史在 `working/`） | 项目启动与当前状态 | `Projects/_index.md` |
 | `Todo.md` | **全局总待办**（按项目分组，不用勾选框） | 找当前待办 | ← 本文件 §一 |
 | `Inbox/` | 写入登记簿（agent 写完留登记，待审核） | 写入后登记 / 审核对账 | `Inbox/YYYY-MM-DD.md` |
 | `Archive/` | 季度归档（`decisions-YYYY-QX.md` / `lessons-YYYY-QX.md`） | 找已归档决策 / 教训 | — |
@@ -80,7 +80,7 @@ tags: [索引, 派生物, 记忆库, 分层路由, 门禁]
 
 ## 七、Agent 读取成本约定
 
-- **启动**：运行 `python scripts/memory_boot.py --cwd <项目根或当前目录>`；只读 `BOOT.md`、当前项目 `_overview.md`、`_state.md` 与 Todo 切片。
+- **启动**：运行 `python scripts/memory_boot.py --cwd .`；只注入 `BOOT.md`、当前项目 `_overview.md`、`_state.md` 与 Todo 切片。Todo 文件可被读取用于切片，但不会整份注入上下文。
 - **普通任务**：不默认扫描记忆库；需要偏好时只读 `BOOT.md`。
 - **按需检索**：运行 `python scripts/memory_query.py "关键词" --cwd <项目根或当前目录>`，默认返回 top-k 片段，排除 archived/superseded。
 - **不读本页**：`_index.md` 与各层 `_index.md` 是生成/校验派生物，不参与启动。
