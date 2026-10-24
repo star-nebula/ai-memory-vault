@@ -357,6 +357,32 @@ class MemoryAgentContextTest(unittest.TestCase):
         self.assertTrue(result["matches"])
         self.assertLessEqual(len(result["matches"][0]["snippet"]), 430)
 
+    def test_query_ignores_bare_number_noise_and_boosts_project_tree(self):
+        (self.project / "query-target.md").write_text(
+            "---\ntype: project-fact\nstatus: active\n---\n"
+            "# PR #8 issue #9\n\n项目内目标记录。\n",
+            encoding="utf-8",
+        )
+        (self.memory / "Lessons" / "numeric-noise.md").write_text(
+            "---\ntype: lesson\nscope: global\nstatus: active\n---\n"
+            "# 8 9\n\n" + "8 9 " * 50,
+            encoding="utf-8",
+        )
+        (self.memory / "Lessons" / "substring-noise.md").write_text(
+            "---\ntype: lesson\nscope: global\nstatus: active\n---\n"
+            "# proxy issues\n\nproxy preparations and print providers; issues remain.\n",
+            encoding="utf-8",
+        )
+        result = search_memory(
+            self.memory,
+            "home-pages PR #8 issue #9",
+            project="demo",
+        )
+        paths = [match["path"] for match in result["matches"]]
+        self.assertEqual(paths[0], "Projects/demo/query-target.md")
+        self.assertNotIn("Lessons/numeric-noise.md", paths)
+        self.assertNotIn("Lessons/substring-noise.md", paths)
+
     def test_query_reports_last_verification_date(self):
         (self.memory / "Lessons" / "verified-path.md").write_text(
             "---\ntype: lesson\nscope: demo\nstatus: active\n"

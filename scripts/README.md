@@ -37,6 +37,7 @@ python memory_query.py "关键词" --layers Decisions,Lessons
 - 默认只排除 archived/superseded，其他 status 保留；`--include-inactive` 显式放开。
 - 无法识别项目时默认只搜 `scope: global`；跨项目检索必须显式加 `--all-projects`。
 - 指定项目时，`Projects/<项目>` 之外的项目树不会进入结果；跨层笔记必须 `scope` 为该项目的名称或 `global`。
+- 排序把 ASCII 词按 token 计数而非子串；裸数字/两位缩写降权，项目树结果加权，避免 `PR #8` 被无关的 `8`/`proxy` 噪声压过。
 - 默认跳过 `Inbox/`、`Archive/`、`working/`；查历史时加 `--include-history`。
 - `--since/--until` 按笔记日期区间过滤；journal 月分片与 completed 季度分片在读取前按分片范围跳过不相交文件。
 - `--layers` 限定内容层，例如 `Decisions,Lessons,Projects`。

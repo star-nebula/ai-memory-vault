@@ -175,6 +175,23 @@ def _snippet(body: str, terms: List[str], width: int = SNIPPET_CHARS) -> str:
     return ("..." if start else "") + compact[start:end].strip() + ("..." if end < len(compact) else "")
 
 
+def _term_weight(term: str) -> float:
+    """Reduce noise from bare IDs while keeping them usable in numeric queries."""
+    if len(term) == 1:
+        return 0.15
+    if term.isascii() and len(term) <= 2:
+        return 0.5
+    return 1.0
+
+
+def _count_term(text: str, term: str) -> int:
+    """Count ASCII terms as tokens, not substrings inside unrelated words."""
+    if not term.isascii():
+        return text.count(term)
+    pattern = r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(term)
+    return len(re.findall(pattern, text, re.I))
+
+
 def search_memory(
     memory_dir: Path,
     query: str,
@@ -201,6 +218,11 @@ def search_memory(
             "undated_skipped": 0,
         }
 
+    normalized_query = normalize_search_text(query)
+    strong_terms = [
+        term for term in terms
+        if len(term) >= 3 or (not term.isascii() and len(term) >= 2)
+    ]
     type_filter = {t.strip().lower() for t in types or [] if t.strip()}
     layer_filter = {layer.strip().lower() for layer in layers or [] if layer.strip()}
     if layer_filter:
@@ -247,8 +269,13 @@ def search_memory(
         headings = "\n".join(re.findall(r"^#{1,6}\s+(.+?)\s*$", body, re.M))
         tags = frontmatter.get("tags", "")
         searchable = normalize_search_text("\n".join([title, headings, tags, body]))
-        counts = {term: searchable.count(term) for term in terms}
+        counts = {term: _count_term(searchable, term) for term in terms}
         if not any(counts.values()):
+            continue
+        # A query such as "home-pages PR #8 issue #9" must not rank notes that only
+        # happen to contain the bare digits 8 or 9. If the query has stronger terms,
+        # require at least one of them before scoring.
+        if strong_terms and not any(counts[term] for term in strong_terms):
             continue
         bounds = _note_date_bounds(path, frontmatter, body) if (since or until) else None
         if since or until:
@@ -261,15 +288,21 @@ def search_memory(
         title_low = normalize_search_text(title)
         heading_low = normalize_search_text(headings)
         tags_low = normalize_search_text(tags)
-        score = 0
+        score = 0.0
+        if project and in_project_tree:
+            score += 25
+        if normalized_query and normalized_query in searchable:
+            score += 120
+        score += sum(3 for term in strong_terms if counts[term])
         for term in terms:
+            weight = _term_weight(term)
             if title_low == term:
-                score += 100
-            elif term in title_low:
-                score += 45
-            score += heading_low.count(term) * 10
-            score += tags_low.count(term) * 8
-            score += min(counts[term], 12) * 2
+                score += 100 * weight
+            else:
+                score += _count_term(title_low, term) * 45 * weight
+            score += _count_term(heading_low, term) * 10 * weight
+            score += _count_term(tags_low, term) * 8 * weight
+            score += min(counts[term], 12) * 2 * weight
         if project and scope.casefold() == project.casefold():
             score += 8
         elif scope.casefold() == "global":
@@ -289,7 +322,7 @@ def search_memory(
             "snippet": _snippet(body, terms),
         })
 
-    matches.sort(key=lambda item: (int(item["score"]), str(item.get("updated", ""))), reverse=True)
+    matches.sort(key=lambda item: (float(item["score"]), str(item.get("updated", ""))), reverse=True)
     total = len(matches)
     return {
         "query": query,
