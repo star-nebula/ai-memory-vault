@@ -93,6 +93,7 @@ python scripts/encoding_guard.py <path> # encoding + bare-control-character gate
 | `memory_query.py` | Whole-note expansion; project/scope leakage; archived/superseded results unless explicitly requested |
 | `todo_audit.py` | Closed-but-not-moved leftovers; group names not matching project dirs; fake "already moved to Todo" claims; out-of-vocabulary frontmatter types; (report-only) Inbox audit backlog |
 | `state_audit.py` | Missing, placeholder, stale, or oversized project `_state.md` cards (report-only by default) |
+| `memory_review.py` | Missing/review status, unverified or stale volatile claims in long-term memory (report-only by default) |
 | `encoding_guard.py` | Non-UTF-8 / BOM leftovers; bare control characters left by AI escape-swallowing — the invisible killer that makes files binary to grep |
 | `sync_memory_instructions.py` | Drift between each tool's instruction slot and the single source; bare control characters in the source; `<项目名>` placeholder pseudo-values |
 

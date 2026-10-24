@@ -33,6 +33,7 @@ class SyncProjectHookTest(unittest.TestCase):
             patch.object(sync, "MEMORY_PROJECTS", self.memory / "Projects"),
             patch.object(sync, "BAK_DIR", self.root / "backup"),
             patch.object(sync, "minimal_body", return_value="new body"),
+            patch.object(sync, "log", side_effect=lambda *_args, **_kwargs: None),
             patch.object(
                 sync,
                 "project_roots",

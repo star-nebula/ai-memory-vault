@@ -61,6 +61,7 @@ python scripts/encoding_guard.py <path>  # エンコーディング + 制御文�
 | `memory_boot.py` | 起動コンテキストの無制限化・section の暗黙切り捨て・プロジェクト文脈の欠落 |
 | `memory_query.py` | ノート全体の展開・project/scope の漏洩・archived/superseded の既定混入 |
 | `state_audit.py` | アクティブプロジェクトの `_state.md` 欠落・プレースホルダー・古い更新日・過長（既定は報告のみ） |
+| `memory_review.py` | 長期記憶の status 欠落・review・易漂移断言の未検証/期限切れ（既定は報告のみ） |
 | `todo_audit.py` | 完了済みだが未移動の残骸・グループ名とプロジェクト dir の不一致・「Todo に移した」虚偽申告・語彙外 type・Inbox 監査の滞留（報告のみ） |
 | `encoding_guard.py` | 非 UTF-8 / BOM・AI のエスケープ食いによる裸制御文字（grep から見えなくなる地雷） |
 | `sync_memory_instructions.py` | ツール指令位と単一真源の漂移・真源の制御文字汚染・`<项目名>` 疑似値 |

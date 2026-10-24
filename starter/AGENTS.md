@@ -47,4 +47,5 @@
 - `scripts/memory_boot.py`：生成小型启动包。
 - `scripts/memory_query.py`：有界关键词检索，返回路径与片段。
 - `scripts/todo_audit.py`、`scripts/encoding_guard.py`、`scripts/state_audit.py`：校验与维护。
+- `scripts/memory_review.py`：长期记忆生命周期与时效复核队列。
 - `scripts/sync_memory_instructions.py`：分发并校验各 AI 工具的用户级/项目级指令。

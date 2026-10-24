@@ -1,6 +1,6 @@
 # scripts —— 门禁与运维脚本
 
-七个脚本全部**仅用 Python 标准库**（3.9+），无第三方依赖。
+八个脚本全部**仅用 Python 标准库**（3.9+），无第三方依赖。
 
 ## 记忆库定位（Agent 脚本与门禁共用）
 
@@ -68,6 +68,20 @@ python state_audit.py --max-age-days 30 -o scripts/_out/state_audit.txt
 - 从 `Todo.md` 的项目分组取出活跃项目，检查每个项目的 `_state.md` 是否存在、是否为占位卡、`updated` 是否过期、正文是否超过 1000 字符。
 - **默认只报告、退出码 0**；`--strict` 在 missing / placeholder / stale / too_large 任一项存在时退出 1。
 - 不做自动修改：活跃项目的真实状态必须由对应会话核实后写入，不能用统一模板批量伪造。
+
+## `memory_review.py` —— 长期记忆复核队列
+
+```bash
+python memory_review.py
+python memory_review.py --json
+python memory_review.py --strict
+python memory_review.py --max-age-days 90 -o scripts/_out/memory_review.txt
+```
+
+- 扫描 `Preferences/`、`Plans/`、`Decisions/`、`Lessons/`、`Workflows/` 的长期笔记。
+- 报告缺 `status`、`status: review`、易漂移断言缺 `verified_at`，以及 `verified_at` 超过阈值未复核。
+- “易漂移”只按路径、目录、工具行为、环境版本等信号识别；不把普通结论强行要求核验日期。
+- 默认只报告，`--strict` 才在任一复核项存在时退出 1；不自动改正文或伪造日期。
 
 ## `encoding_guard.py` —— 编码守卫 + 裸控制符门（门禁 ③）
 

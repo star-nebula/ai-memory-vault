@@ -61,6 +61,7 @@ python scripts/encoding_guard.py <ruta>  # puerta: codificación + caracteres de
 | `memory_boot.py` | Inicio sin límite · truncado silencioso de secciones · falta de contexto del proyecto |
 | `memory_query.py` | Expansión de notas completas · fuga de project/scope · archived/superseded incluidos por defecto |
 | `state_audit.py` | `_state.md` de proyectos activos ausente, provisional, obsoleto o demasiado largo (solo informe por defecto) |
+| `memory_review.py` | Falta de status/review o afirmaciones volátiles sin verificar/vencidas en memoria larga (solo informe por defecto) |
 | `todo_audit.py` | Tareas "hechas" pero no movidas · grupos sin directorio de proyecto · falsas afirmaciones de "ya movido a Todo" · tipos fuera de vocabulario · acumulación de auditoría de Inbox (solo informe) |
 | `encoding_guard.py` | No UTF-8 / BOM · caracteres de control dejados por escapes tragados por la IA (invisibles para grep) |
 | `sync_memory_instructions.py` | Deriva entre el slot de instrucciones de cada herramienta y la fuente única · contaminación de la fuente · pseudo-valor `<项目名>` |

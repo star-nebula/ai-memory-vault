@@ -61,6 +61,7 @@ python scripts/encoding_guard.py <path>  # 인코딩 + 제어 문자 게이트
 | `memory_boot.py` | 시작 컨텍스트 무제한 · section 암묵적 절단 · 프로젝트 문맥 누락 |
 | `memory_query.py` | 전체 노트 확장 · project/scope 누출 · archived/superseded 기본 포함 |
 | `state_audit.py` | 활성 프로젝트의 `_state.md` 누락 · 자리표시자 · 오래된 갱신일 · 과대 문서(기본은 보고만) |
+| `memory_review.py` | 장기 기억의 status 누락 · review · 변동성 주장의 미검증/기한 경과(기본은 보고만) |
 | `todo_audit.py` | 완료 표시만 하고 이동하지 않은 항목 · 그룹명↔프로젝트 dir 불일치 · "Todo에 옮겼다"는 허위 보고 · 어휘 밖 type · Inbox 감사 적체(보고만) |
 | `encoding_guard.py` | 비 UTF-8 / BOM · AI의 이스케이프 탈취가 남긴 제어 문자(grep에서 보이지 않는 지뢰) |
 | `sync_memory_instructions.py` | 도구 지시 자리와 단일 진원의 드리프트 · 진원의 제어 문자 오염 · `<项目名>` 의사값 |
