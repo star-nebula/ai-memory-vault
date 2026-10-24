@@ -63,6 +63,11 @@ def _find_memory_dir() -> Path:
     for start in (Path.cwd(), Path(__file__).resolve()):
         for p in [start, *start.parents]:
             cand = p / "Memory"
+            nested = p / "vault" / "Memory"
+            if nested.is_dir() and any(
+                (nested / marker).exists() for marker in ("Todo.md", "_index.md", "rule")
+            ):
+                return nested
             if cand.is_dir() and any(
                 (cand / marker).exists() for marker in ("Todo.md", "_index.md", "rule")
             ):
@@ -71,8 +76,9 @@ def _find_memory_dir() -> Path:
 
 
 MEM = _find_memory_dir()
-VAULT = MEM.parent  # 库根：AGENTS.md / Templates 所在层
-REPO = VAULT  # 报告相对路径基准
+VAULT = MEM.parent  # Obsidian 库根：vault/_index.md / Templates 所在层
+WORKSPACE = VAULT.parent if VAULT.name == "vault" and (VAULT.parent / "AGENTS.md").is_file() else VAULT
+REPO = WORKSPACE  # 报告相对路径与同名消歧正本的工作区根
 TODAY = _dt.date.today().isoformat()
 
 # 需要生成 _index.md 的层（Decisions 除外：其索引行由人写，且有「一行覆盖多决策」的合并形态）
@@ -395,10 +401,10 @@ def check_top_level(idx: Path, items: list[str], label: str, problems: list[str]
 # 现行：完整五组表唯一正本 = 工作区根 `AGENTS.md` §同名文件消歧；`Memory/_index.md` §六 只留指针。
 # 失明即红：正本 / 索引缺文件、标题改名或重复、表结构畸形、五组缺行或重复、
 # 指针缺失 / 路径错 / 节名错 / 落在别节，一律报红。判据只认真 Markdown 内容。
-DISAMBIG_CANON = VAULT / "AGENTS.md"
+DISAMBIG_CANON = WORKSPACE / "AGENTS.md"
 DISAMBIG_INDEX = MEM / "_index.md"
 DISAMBIG_HEAD_KEY = "同名文件消歧"
-DISAMBIG_CANON_TITLE = "同名文件消歧（易混清单）"
+DISAMBIG_CANON_TITLES = ("同名文件消歧（易混清单）", "四、同名文件消歧")
 DISAMBIG_GROUPS = ["AGENTS.md", "Inbox/", "Archive/", "Templates/", "Projects/"]
 DISAMBIG_COLS = 3
 _SEP_CELL = re.compile(r"^:?-{3,}:?$")
@@ -621,9 +627,9 @@ def check_disambig_single_source(problems: list[str], canon: Path | None = None,
         )
         return
     title = canon_lines[hits[0]].strip()
-    if title != "## " + DISAMBIG_CANON_TITLE:
+    if title not in ["## " + accepted for accepted in DISAMBIG_CANON_TITLES]:
         problems.append(
-            f"[消歧正本标题失明] {_r(canon)} :: 正本小节标题须逐字等于 `## {DISAMBIG_CANON_TITLE}`，实为 `{title}`"
+            f"[消歧正本标题失明] {_r(canon)} :: 正本小节标题须为 {DISAMBIG_CANON_TITLES} 之一，实为 `{title}`"
         )
         return
     _check_disambig_canon_table(_section_slice(canon_lines, hits[0]), _r(canon), problems)
@@ -792,3 +798,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+

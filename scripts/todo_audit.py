@@ -97,6 +97,11 @@ def _find_memory_dir() -> Path:
     for start in (Path.cwd(), Path(__file__).resolve()):
         for p in [start, *start.parents]:
             cand = p / "Memory"
+            nested = p / "vault" / "Memory"
+            if nested.is_dir() and any(
+                (nested / marker).exists() for marker in ("Todo.md", "_index.md", "rule")
+            ):
+                return nested
             if cand.is_dir() and any(
                 (cand / marker).exists() for marker in ("Todo.md", "_index.md", "rule")
             ):

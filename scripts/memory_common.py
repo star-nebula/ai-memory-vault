@@ -68,6 +68,9 @@ def find_memory_dir(explicit: Optional[str] = None, start: Optional[str] = None)
             if current.name == "Memory" and is_memory_root(current):
                 return current
             candidate = current / "Memory"
+            nested = current / "vault" / "Memory"
+            if nested.is_dir() and is_memory_root(nested):
+                return nested
             if candidate.is_dir() and is_memory_root(candidate):
                 return candidate
             if current.parent == current:
