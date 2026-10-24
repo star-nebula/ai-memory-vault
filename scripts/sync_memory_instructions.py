@@ -504,7 +504,13 @@ def deploy_projects(check_only):
         for name, k in unresolved:
             log("  [NOROOT] %-24s 目录名命中 %d 个" % (name, k))
     if check_only:
-        log("=> 项目级钩子校验：%s" % ("全部在位一致" if problems == 0 else "有 %d 处待部署/漂移" % problems))
+        if problems:
+            status = "有 %d 处待部署/漂移" % problems
+        else:
+            status = "所有已定位项目在位一致"
+        if unresolved:
+            status += "；%d 个 NOROOT 仅报告" % len(unresolved)
+        log("=> 项目级钩子校验：%s" % status)
     return 1 if problems else 0
 
 
