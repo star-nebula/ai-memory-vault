@@ -82,8 +82,8 @@ tags: [索引, 地图, 记忆库, 分层路由, 门禁]
 
 - **启动**：运行 `python scripts/memory_boot.py --cwd .`；只注入 `BOOT.md`、当前项目 `_overview.md`、`_state.md` 与 Todo 切片。Todo 文件可被读取用于切片，但不会整份注入上下文。
 - **普通任务**：不默认扫描记忆库；需要偏好时只读 `BOOT.md`。
-- **按需检索**：运行 `python scripts/memory_query.py "关键词" --cwd <项目根或当前目录>`，默认返回 top-k 片段，排除 archived/superseded。
-- **不读本页**：`_index.md` 与各层 `_index.md` 是生成/校验派生物，不参与启动。
+- **按需检索**：运行 `python scripts/memory_query.py "关键词" --cwd .`，默认返回 top-k 片段，排除 archived/superseded。
+- **不读本页**：根 `_index.md` 是手工地图；各层 `_index.md` 是生成/校验目录。两者都不参与启动。
 - **当前项目判定**：项目根 `AGENTS.md` 的 `当前项目名` → 工作目录推断 → 询问用户；由 `memory_boot.py` / `memory_query.py` 封装。
 - **时效**：记忆是写下当天的快照；路径、文件存在性、工具行为引用前先复测。
 ## 八、维护

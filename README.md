@@ -45,7 +45,7 @@ your-vault/                   ← your notes repo / workspace root (a plain Mark
 └── Memory/                   ← the memory vault itself (the single memory location)
     ├── AGENTS.md             ← iron rules + short hook (deployed into every tool's system prompt)
     ├── BOOT.md               ← only always-on hot layer (small, stable facts)
-    ├── _index.md             ← generated catalog for gates/diagnostics; not read at boot
+    ├── _index.md             ← hand-maintained map; layer _index.md files are generated catalogs; neither is read at boot
     ├── Rule.md               ← rulebook TOC: operation → section mapping
     ├── rule/                 ← four rule sections (write / wrap-up / sub-agents / vibe-coding)
     ├── Todo.md               ← global todos, grouped by project (no checkboxes)

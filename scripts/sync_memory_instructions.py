@@ -404,7 +404,7 @@ def hook_text(project, body):
         "",
         "## 本项目记忆怎么读",
         "",
-        "- 启动：`python scripts/memory_boot.py --cwd <项目根>`；只加载热层、本项目 overview/state 与 Todo 切片。",
+        "- 启动：`python scripts/memory_boot.py --cwd .`；只加载热层、本项目 overview/state 与 Todo 切片。",
         "- 按需查历史/原因/踩坑：`python scripts/memory_query.py \"关键词\" --project %s`。" % project,
         "- 不读 `_index.md` 或各层 `_index.md`；它们是校验用派生物。",
         "- 项目档案：`%s\\%s\\_overview.md`；当前状态：`_state.md`。" % (MEMORY_ROOT, ov),

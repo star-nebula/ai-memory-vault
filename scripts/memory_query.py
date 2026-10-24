@@ -46,7 +46,8 @@ def _is_inactive(status: str) -> bool:
     return any(value.startswith(prefix) for prefix in INACTIVE_STATUSES)
 
 
-def _iter_notes(memory_dir: Path, include_history: bool):
+def _iter_notes(memory_dir: Path, include_history: bool, project: Optional[str] = None,
+                all_projects: bool = False):
     for path in sorted(memory_dir.rglob("*.md")):
         if not path.is_file() or path.name in SKIP_FILES:
             continue
@@ -55,6 +56,11 @@ def _iter_notes(memory_dir: Path, include_history: bool):
             continue
         if not include_history and (rel_parts[0] in ("Inbox", "Archive") or "working" in rel_parts):
             continue
+        if rel_parts[0] == "Projects":
+            if not project and not all_projects:
+                continue
+            if project and (len(rel_parts) < 2 or rel_parts[1].casefold() != project.casefold()):
+                continue
         yield path, rel_parts
 
 
@@ -94,7 +100,7 @@ def search_memory(
     type_filter = {t.strip().lower() for t in types or [] if t.strip()}
     matches: List[Dict[str, object]] = []
 
-    for path, rel_parts in _iter_notes(memory_dir, include_history):
+    for path, rel_parts in _iter_notes(memory_dir, include_history, project=project, all_projects=all_projects):
         text = read_text(path)
         frontmatter, body = split_frontmatter(text)
         typ = frontmatter.get("type", "").lower()
@@ -107,12 +113,12 @@ def search_memory(
 
         in_project_tree = len(rel_parts) >= 2 and rel_parts[0] == "Projects"
         if project:
-            if in_project_tree and rel_parts[1] != project:
+            if in_project_tree and rel_parts[1].casefold() != project.casefold():
                 continue
-            if not in_project_tree and scope not in (project, "global"):
+            if not in_project_tree and scope.casefold() not in (project.casefold(), "global"):
                 continue
         elif not all_projects:
-            if in_project_tree or scope != "global":
+            if in_project_tree or scope.casefold() != "global":
                 continue
 
         title = frontmatter.get("title") or first_heading(body, path.stem)
@@ -135,9 +141,9 @@ def search_memory(
             score += heading_low.count(term) * 10
             score += tags_low.count(term) * 8
             score += min(counts[term], 12) * 2
-        if scope == project:
+        if project and scope.casefold() == project.casefold():
             score += 8
-        elif scope == "global":
+        elif scope.casefold() == "global":
             score += 3
 
         matches.append({

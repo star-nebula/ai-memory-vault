@@ -131,19 +131,32 @@ def validate_project_name(memory_dir: Path, name: str) -> str:
         raise InvalidProjectError("invalid project name: %r" % name)
 
     projects = (memory_dir / "Projects").resolve()
-    candidate = (projects / name).resolve()
+    if not projects.is_dir():
+        raise InvalidProjectError("Memory/Projects directory not found")
+    candidate_path = projects / name
+    if not candidate_path.exists():
+        folded = [p for p in projects.iterdir() if p.name.casefold() == name.casefold()]
+        if len(folded) == 1:
+            candidate_path = folded[0]
+        elif len(folded) > 1:
+            raise InvalidProjectError("ambiguous project name: %r" % name)
+    candidate = candidate_path.resolve()
     try:
         candidate.relative_to(projects)
     except ValueError:
         raise InvalidProjectError("project escapes Memory/Projects: %r" % name)
     if candidate.parent != projects or not candidate.is_dir():
         raise InvalidProjectError("project directory not found: %r" % name)
-    return name
+    return candidate.name
 
 
 def _nearest_project_root(current: Path) -> Path:
-    for parent in [current] + list(current.parents):
-        if (parent / ".git").exists() or (parent / "AGENTS.md").is_file():
+    parents = [current] + list(current.parents)
+    for parent in parents:
+        if (parent / ".git").exists():
+            return parent
+    for parent in parents:
+        if (parent / "AGENTS.md").is_file():
             return parent
     return current
 
@@ -175,14 +188,13 @@ def detect_project(memory_dir: Path, cwd: Optional[str] = None) -> Optional[str]
                 continue
             name = next((g for g in match.groups() if g), "").strip().rstrip("*`")
             return validate_project_name(memory_dir, name)
-        break
 
-    # Prefer the code-root name. Scanning every ancestor could mistake a group
-    # directory (for example ``Projects/personal``) for the project itself.
-    candidates = [current.name]
+    # Prefer the code root marked by .git. A nested package AGENTS.md without
+    # a project declaration must not hide the repository-level declaration.
     root_name = _nearest_project_root(current).name
-    if root_name not in candidates:
-        candidates.append(root_name)
+    candidates = [root_name]
+    if current.name not in candidates:
+        candidates.append(current.name)
     for name in candidates:
         try:
             return validate_project_name(memory_dir, name)
@@ -211,7 +223,7 @@ def extract_todo_section(text: str, project: str) -> str:
     lines = text.splitlines()
     start = None
     for i, line in enumerate(lines):
-        if line.startswith("## ") and normalize_group_title(line) == project:
+        if line.startswith("## ") and normalize_group_title(line).casefold() == project.casefold():
             start = i
             break
     if start is None:

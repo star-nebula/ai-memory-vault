@@ -441,7 +441,7 @@ def scan_todo_claims(todo_path: Path) -> dict:
 
 def scan_todo(todo_path: Path) -> dict:
     todo_text = read_text(todo_path)
-    lines = todo_text.splitlines()
+    lines = todo_text.splitlines(keepends=True)
     dirs = project_dirs()
     dirs_lower = {k.lower(): k for k in dirs}
 
@@ -455,8 +455,8 @@ def scan_todo(todo_path: Path) -> dict:
     item_count = 0
 
     for i, raw in enumerate(lines, start=1):
-        line = raw.rstrip("\n")
-        char_by_group[cur_group] = char_by_group.get(cur_group, 0) + len(line)
+        line = raw.rstrip("\r\n")
+        char_by_group[cur_group] = char_by_group.get(cur_group, 0) + len(raw)
         stripped = line.strip()
         if not stripped:
             continue

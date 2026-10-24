@@ -13,6 +13,7 @@ SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 
 import memory_boot
+import memory_query
 from memory_boot import build_boot_pack
 from memory_common import InvalidProjectError, detect_project, extract_todo_section
 from memory_query import search_memory
@@ -75,7 +76,17 @@ class MemoryAgentContextTest(unittest.TestCase):
         source = code_root / "src"
         source.mkdir(parents=True)
         (code_root / ".git").mkdir()
+        (self.memory / "Projects" / "src").mkdir()
         self.assertEqual(detect_project(self.memory, cwd=str(source)), "demo")
+
+    def test_nested_agents_without_declaration_continues_upward(self):
+        repo = self.root / "repo"
+        package = repo / "packages" / "foo"
+        package.mkdir(parents=True)
+        (repo / ".git").mkdir()
+        (repo / "AGENTS.md").write_text("**当前项目名：`demo`**\n", encoding="utf-8")
+        (package / "AGENTS.md").write_text("普通包规则，无项目声明。\n", encoding="utf-8")
+        self.assertEqual(detect_project(self.memory, cwd=str(package)), "demo")
 
     def test_prose_about_project_name_is_not_a_declaration(self):
         code_root = self.root / "code" / "demo"
@@ -165,6 +176,23 @@ class MemoryAgentContextTest(unittest.TestCase):
         result = search_memory(self.memory, "启动读取", project="demo")
         paths = [m["path"] for m in result["matches"]]
         self.assertNotIn("Projects/other/_overview.md", paths)
+
+    def test_project_lookup_is_case_insensitive_and_returns_actual_name(self):
+        case_memory = self.root / "case-memory"
+        (case_memory / "Projects" / "Demo").mkdir(parents=True)
+        (case_memory / "Projects" / "Demo" / "_overview.md").write_text(
+            "---\ntype: project-fact\n---\n# Demo\n\n启动读取 case project.\n",
+            encoding="utf-8",
+        )
+        result = search_memory(case_memory, "启动读取", project="demo")
+        self.assertTrue(result["matches"])
+        self.assertEqual(result["matches"][0]["path"], "Projects/Demo/_overview.md")
+
+    def test_project_query_does_not_read_other_project_tree(self):
+        with patch("memory_query.read_text", wraps=memory_query.read_text) as read_mock:
+            search_memory(self.memory, "启动读取", project="demo", include_history=True)
+        read_parts = [call.args[0].relative_to(self.memory).parts for call in read_mock.call_args_list]
+        self.assertFalse(any(parts[:2] == ("Projects", "other") for parts in read_parts))
 
     def test_query_without_project_defaults_to_global_only(self):
         result = search_memory(self.memory, "启动读取")
