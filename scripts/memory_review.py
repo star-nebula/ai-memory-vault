@@ -82,6 +82,14 @@ def scan_memory_review(
             text = read_text(path)
             frontmatter, body = split_frontmatter(text)
             if not frontmatter:
+                if text.lstrip("\ufeff").startswith("---"):
+                    issues.append({
+                        "path": rel_posix(path, memory_dir),
+                        "title": path.stem,
+                        "status": "",
+                        "code": "frontmatter_invalid",
+                        "priority": 1,
+                    })
                 continue
             scanned += 1
             status = frontmatter.get("status", "").strip().lower()
@@ -132,6 +140,7 @@ def scan_memory_review(
     counts = {}
     for code in (
         "missing_status", "review_status", "invalid_status",
+        "frontmatter_invalid",
         "volatile_unverified", "volatile_stale", "volatile_future",
     ):
         counts[code] = sum(1 for row in issues if row["code"] == code)
@@ -152,6 +161,7 @@ def render(result: Dict[str, object], limit: int = DEFAULT_LIMIT) -> str:
         f"- missing status: {counts['missing_status']}",
         f"- status review: {counts['review_status']}",
         f"- invalid status: {counts['invalid_status']}",
+        f"- invalid frontmatter: {counts['frontmatter_invalid']}",
         f"- volatile without verified_at: {counts['volatile_unverified']}",
         f"- volatile verified > {result['max_age_days']} days: {counts['volatile_stale']}",
         f"- volatile future-dated: {counts['volatile_future']}",
@@ -161,6 +171,7 @@ def render(result: Dict[str, object], limit: int = DEFAULT_LIMIT) -> str:
         "missing_status": "missing status",
         "review_status": "review",
         "invalid_status": "invalid status",
+        "frontmatter_invalid": "invalid frontmatter",
         "volatile_unverified": "unverified volatile claim",
         "volatile_stale": "stale volatile claim",
         "volatile_future": "future-dated volatile claim",

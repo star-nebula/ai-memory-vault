@@ -113,6 +113,20 @@ class TodoAuditShardTest(unittest.TestCase):
             {row["file"] for row in result["heaviest"]},
         )
 
+    def test_scope_scan_covers_nested_shards(self):
+        (self.working / "journal").mkdir()
+        (self.working / "journal" / "2026-10.md").write_text(
+            "---\ntype: journal\nscope: demo\n---\n# log\n",
+            encoding="utf-8",
+        )
+        with patch.object(todo_audit, "PROJECTS_DIR", self.projects), \
+                patch.object(todo_audit, "MEMORY_DIR", self.memory):
+            result = todo_audit.scan_scope_vocab()
+        self.assertIn(
+            "Projects/demo/working/journal/2026-10.md",
+            result["redundant"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -368,7 +368,7 @@ def scan_scope_vocab() -> dict:
             else:
                 eligible += 1
     # 路径已经表达归属，再填 scope 就是第二份事实源。
-    for pat in ("*/*.md", "*/*/*.md"):
+    for pat in ("*/*.md", "*/*/*.md", "*/*/*/*.md"):
         for f in sorted(PROJECTS_DIR.glob(pat)) if PROJECTS_DIR.is_dir() else []:
             if frontmatter_scope(read_text(f)) is None:
                 continue

@@ -120,6 +120,14 @@ class MemoryReviewTest(unittest.TestCase):
         self.assertEqual(result["counts"]["invalid_status"], 1)
         self.assertEqual(result["counts"]["volatile_future"], 1)
 
+    def test_invalid_frontmatter_is_reported(self):
+        self._write(
+            "Lessons/broken.md",
+            "---\nnot yaml\n---\n# 损坏\n\n正文。\n",
+        )
+        result = scan_memory_review(self.memory, today=date(2026, 10, 24))
+        self.assertEqual(result["counts"]["frontmatter_invalid"], 1)
+
     def test_structural_file_without_frontmatter_is_exempt(self):
         self._write(
             "Workflows/instructions.md",
