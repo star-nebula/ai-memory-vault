@@ -95,7 +95,7 @@ def build_boot_pack(
         chunks.append(str(section["title"]))
         chunks.append(str(section["content"]))
 
-    footer = "Use memory_query.py for deeper lookup; do not read _index.md or layer indexes during boot."
+    footer = "Use memory_query.py for deeper lookup; memory indexes are retired."
     chunks.append("## Retrieval")
     chunks.append(footer)
     full_text = "\n\n".join(chunks).strip() + "\n"
@@ -154,3 +154,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

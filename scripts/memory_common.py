@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 
-MEMORY_MARKERS = ("BOOT.md", "Todo.md", "_index.md", "rule")
+MEMORY_MARKERS = ("BOOT.md", "Todo.md", "rule")
 FRONTMATTER_RE = re.compile(r"\A---\s*\r?\n(.*?)\r?\n---\s*(?:\r?\n)?", re.S)
 HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.M)
 PROJECT_NAME_RE = re.compile(r"当前项目名\s*[：:]\s*(?:`([^`]+)`|\*\*([^*\r\n]+)\*\*|([^\s*`]+))")
@@ -257,3 +257,4 @@ def query_terms(query: str) -> List[str]:
 
 def rel_posix(path: Path, root: Path) -> str:
     return path.relative_to(root).as_posix()
+

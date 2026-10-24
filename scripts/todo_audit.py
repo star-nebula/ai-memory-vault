@@ -111,7 +111,6 @@ def _find_memory_dir() -> Path:
 SCRIPT_DIR = Path(__file__).resolve().parent
 MEMORY_DIR = _find_memory_dir()
 TODO_PATH = MEMORY_DIR / "Todo.md"
-INDEX_PATH = MEMORY_DIR / "_index.md"
 BOOT_PATH = MEMORY_DIR / "BOOT.md"
 PROJECTS_DIR = MEMORY_DIR / "Projects"
 DEFAULT_OUT = SCRIPT_DIR / "_out" / "todo_audit.txt"
@@ -120,7 +119,6 @@ INBOX_DAY_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.md$")
 
 # —— Agent 启动成本阈值（策略常量；改这里，不改文档）——
 LIMIT_BOOT = BOOT_SECTION_LIMITS["boot"]
-LIMIT_INDEX = 5000      # _index.md：生成/校验目录，不计入启动成本
 LIMIT_OVERVIEW = BOOT_SECTION_LIMITS["overview"]
 LIMIT_STATE = BOOT_SECTION_LIMITS["state"]
 LIMIT_BOOT_APPROX = BOOT_DEFAULT_BUDGET
@@ -150,14 +148,11 @@ def scan_opening_cost() -> dict:
     overs = sorted([x for x in overviews if x["chars"] > LIMIT_OVERVIEW], key=lambda x: -x["chars"])
     state_overs = sorted([x for x in states if x["chars"] > LIMIT_STATE], key=lambda x: -x["chars"])
     boot_chars = char_len(BOOT_PATH)
-    index_chars = char_len(INDEX_PATH)
     worst_overview = max((x["chars"] for x in overviews), default=0)
     worst_state = max((x["chars"] for x in states), default=0)
     return {
         "boot_chars": boot_chars,
         "boot_over": boot_chars > LIMIT_BOOT,
-        "index_chars": index_chars,
-        "index_over": index_chars > LIMIT_INDEX,
         "worst_overview": worst_overview,
         "worst_state": worst_state,
         "boot_approx_chars": boot_chars + worst_overview + worst_state,
@@ -659,7 +654,6 @@ def render(r: dict) -> str:
         out.append("（未采集——`--todo` 指向库外路径时跳过）")
     else:
         out.append(f"- `Memory/BOOT.md`：{c['boot_chars']} 字符（热层源政策限 {LIMIT_BOOT}）{'**超标**' if c['boot_over'] else 'ok'}")
-        out.append(f"- `Memory/_index.md`：{c['index_chars']} 字符（地图/目录，不计入启动）")
         out.append(f"- `Memory/Todo.md`：{r['char_total']} 字符（源文件；启动只取当前项目切片，不设源文件硬限）")
         out.append(f"- `Projects/*/_overview.md`：共 {c['overview_total']} 份，最大 {c['worst_overview']} 字符（源政策限 {LIMIT_OVERVIEW}，报告项）")
         if c["overview_offenders"]:
