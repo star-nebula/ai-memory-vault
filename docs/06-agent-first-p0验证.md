@@ -80,6 +80,7 @@ Set-Location starter
 python ..\scripts\mem_index.py --check
 python ..\scripts\todo_audit.py --check
 python ..\scripts\todo_audit.py --cost-check
+python ..\scripts\todo_audit.py --content-check
 python ..\scripts\encoding_guard.py . --no-ctrl
 python ..\scripts\sync_memory_instructions.py --check
 ```
@@ -105,11 +106,11 @@ Claude Code 的第一轮审查发现并已修复：
 - 预算语义：`--budget` 只约束 `text`；JSON 元数据不重复携带正文，并在帮助文本中明确该口径。
 - BOM：统一按 `utf-8-sig` 读取，BOM 不再绕过 status/scope 过滤。
 - Todo 分组：启动和门禁共用同一个“去掉尾部括号说明”的归一化规则。
-- 启动成本：`_state.md` 纳入统计，阈值与 `memory_boot.SECTION_LIMITS` 共用同一组常量，Todo 源文件不再伪装成启动硬限。
+- 启动门禁：`--cost-check` 只拦 BOOT 源政策与实际 `assembled_chars`/最终预算截断；`--content-check` 才严格拦 overview/state 源超限、section 截断与缺 state。
 - 目录页：`mem_index.py` 生成的各层 `_index.md` 不再自称“AI 入口”。
 - 项目状态：`live-diagram` 补了 `_state.md`；没有 `_state.md` 的活跃项目进入报告项。
 
-新增回归测试后，当前共 **24** 个测试通过。
+新增回归测试后，当前共 **26** 个测试通过。
 
 ## 未进入本批的范围
 

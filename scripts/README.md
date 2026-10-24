@@ -60,7 +60,8 @@ python mem_index.py --write --refresh-cells   # 强制按实盘重算人工定�
 ```bash
 python todo_audit.py                 # 全量报告 → scripts/_out/todo_audit.txt
 python todo_audit.py --check         # 门禁：完成信号残留/分组名不映射/Todo 假声明/type 词表外取值 → 退出码 1
-python todo_audit.py --cost-check    # 门禁：Agent 启动成本超标 → 退出码 1（季度维护用）
+python todo_audit.py --cost-check    # 硬门禁：BOOT 源政策 / 实际 assembled 启动包超标 → 退出码 1
+python todo_audit.py --content-check # 严格内容债门禁：overview/state/section 截断/缺 state → 退出码 1
 python todo_audit.py --scope-check   # 门禁：scope 非法取值/冗余出现 → 退出码 1（季度维护用）
 python todo_audit.py --inbox <目录> --audit-date YYYY-MM-DD   # 积压计数 fixture（日常不用）
 ```
@@ -99,4 +100,4 @@ python sync_memory_instructions.py --projects   # 部署项目级钩子（只新
 
 ## 收尾 / 季度维护怎么挂
 
-见 `../starter/Memory/rule/收尾与维护.md`：每次会话收尾跑 `mem_index.py --check` + `todo_audit.py --check` + `sync_memory_instructions.py --check`；季度再加 `--cost-check` / `--scope-check` / `encoding_guard.py`。
+见 `../starter/Memory/rule/收尾与维护.md`：每次会话收尾跑 `mem_index.py --check` + `todo_audit.py --check` + `sync_memory_instructions.py --check`；季度再加 `--cost-check` / `--content-check` / `--scope-check` / `encoding_guard.py`。

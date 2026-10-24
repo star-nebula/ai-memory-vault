@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -134,6 +136,42 @@ class MemoryAgentContextTest(unittest.TestCase):
         self.assertIn("BOOT.md", pack["files"])
         read_names = [call.args[0].name for call in read_mock.call_args_list]
         self.assertNotIn("_index.md", read_names)
+
+    def test_boot_truncation_fields_are_separate(self):
+        (self.project / "_overview.md").write_text("A" * 5000, encoding="utf-8")
+        section_only = build_boot_pack(self.memory, project="demo", budget=6000)
+        self.assertTrue(section_only["section_truncated"])
+        self.assertFalse(section_only["budget_truncated"])
+        total_cut = build_boot_pack(self.memory, project="demo", budget=1200)
+        self.assertTrue(total_cut["section_truncated"])
+        self.assertTrue(total_cut["budget_truncated"])
+
+    def test_cost_gate_passes_content_debt_and_content_check_fails(self):
+        fixture = self.root / "gate-fixture"
+        shutil.copytree(SCRIPTS.parent / "starter" / "Memory", fixture / "Memory")
+        memory = fixture / "Memory"
+        project = memory / "Projects" / "demo"
+        (project / "working").mkdir(parents=True)
+        (project / "_overview.md").write_text("A" * 3000, encoding="utf-8")
+        (project / "_state.md").write_text("state " * 80, encoding="utf-8")
+        (project / "working" / "completed.md").write_text("", encoding="utf-8")
+        (memory / "Todo.md").write_text("# Todo\n\n## demo\n\n- test\n", encoding="utf-8")
+        env = os.environ.copy()
+        env["AI_MEMORY_DIR"] = str(memory)
+        cost_out = self.root / "cost.txt"
+        content_out = self.root / "content.txt"
+        cost = subprocess.run(
+            [sys.executable, str(SCRIPTS / "todo_audit.py"), "--cost-check", "-o", str(cost_out)],
+            cwd=str(fixture), env=env, capture_output=True, text=True, encoding="utf-8",
+        )
+        content = subprocess.run(
+            [sys.executable, str(SCRIPTS / "todo_audit.py"), "--content-check", "-o", str(content_out)],
+            cwd=str(fixture), env=env, capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(cost.returncode, 0, cost.stdout + cost.stderr)
+        self.assertEqual(content.returncode, 1, content.stdout + content.stderr)
+        self.assertIn("内容债", cost.stdout)
+        self.assertIn("内容债", content.stderr)
 
     def test_boot_pack_honors_text_budget(self):
         (self.project / "_overview.md").write_text("A" * 5000, encoding="utf-8")

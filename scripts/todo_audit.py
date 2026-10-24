@@ -12,7 +12,7 @@
     1. 完成信号残留 —— Todo 里带完成标记、但未移走的条目（违规）
     2. 分组名映射   —— `## 分组` 标题必须等于 `Projects/` 下的目录名（规则要求）
     3. completed.md —— 被 Todo 提到的项目是否已有 `working/completed.md`
-    4. Agent 启动成本 —— BOOT.md、项目 overview 与启动近似上限；实际包由 memory_boot.py 控制（报告项）
+    4. Agent 启动硬门禁 + 内容债 —— BOOT 源政策、实际 assembled 启动包为硬门禁；overview/state 源超限与 section 截断为报告项
     5. scope 词表   —— 跨层归属字段的非法取值与冗余出现（2026-09-29 增，报告项；
                      合法值 = `global` ∪ `Projects/` 目录名，由实盘推导、脚本内不写死词表）
     6. Todo 声明核对 —— journal/plan 里「已并入 Todo」这类话**是否真有其条**
@@ -35,7 +35,7 @@
     因而阈值在脚本常量，实测在报告，文档只指路。
 
 阈值分档（`--check` 把 1/2/6/8/9 当门禁；启动成本、`scope` 与暂存层体量走报告，避免历史欠账或改名当天把每次收尾都判红）：
-    · 单文件超过 LIMIT_* 记「待瘦身」；`--cost-check` 才作硬门禁退出码 1。
+    · 单文件超过 LIMIT_* 记「内容债」；`--cost-check` 只拦 BOOT 源政策与实际启动包，`--content-check` 才拦内容债。
     · 暂存层**判压面只收 journal**：超 LIMIT_STAGING_CHARS（**字符数**口径）记「待压缩」，**只报告不拦**；
       completed 属终态层，只进「最重几份」观测面。
       压缩旧段是渐进蒸馏，存量不可能当天清零——当门禁就恒红。原「约 500 行」口径永不触发（见报告第八节）。
@@ -54,7 +54,8 @@
 用法：
     python todo_audit.py                 # 全量报告 → _agent_scripts/_out/todo_audit.txt
     python todo_audit.py --check         # 门禁模式：完成信号残留 / 分组名不映射 / Todo 假声明 即退出码 1
-    python todo_audit.py --cost-check    # 门禁模式：Agent 启动成本超标即退出码 1（季度维护用）
+    python todo_audit.py --cost-check    # 硬门禁：BOOT 源政策 / 实际 assembled 启动包超标 → 退出码 1
+    python todo_audit.py --content-check # 严格内容债门禁：overview/state/section 截断/缺 state → 退出码 1
     python todo_audit.py -o <文件>        # 指定输出
     python todo_audit.py --json           # 机器可读
     python todo_audit.py --todo <路径>    # 覆盖 Todo 路径
@@ -79,6 +80,7 @@ from datetime import date
 from pathlib import Path
 
 from memory_common import DEFAULT_BUDGET as BOOT_DEFAULT_BUDGET, SECTION_LIMITS as BOOT_SECTION_LIMITS, normalize_group_title
+from memory_boot import build_boot_pack
 
 # Windows 控制台默认 GBK，本脚本输出含中文与符号，不加这行会 UnicodeEncodeError 中断。
 if hasattr(sys.stdout, "reconfigure"):
@@ -159,6 +161,40 @@ def scan_opening_cost() -> dict:
         "overview_total": len(overviews),
         "state_total": len(states),
     }
+
+def scan_boot_health(active_projects) -> dict:
+    rows = []
+    if PROJECTS_DIR.is_dir():
+        for project in sorted(p for p in PROJECTS_DIR.iterdir() if p.is_dir()):
+            if not (project / "_overview.md").is_file():
+                continue
+            try:
+                pack = build_boot_pack(MEMORY_DIR, project=project.name, budget=BOOT_DEFAULT_BUDGET)
+            except Exception as exc:
+                rows.append({"project": project.name, "error": str(exc)})
+                continue
+            rows.append({
+                "project": project.name,
+                "active": project.name in active_projects,
+                "chars": pack["chars"],
+                "assembled_chars": pack["assembled_chars"],
+                "source_chars": pack["source_chars"],
+                "section_truncated": pack["section_truncated"],
+                "budget_truncated": pack["budget_truncated"],
+                "files": pack["files"],
+            })
+    hard = [r for r in rows if r.get("error") or r.get("budget_truncated") or r.get("assembled_chars", 0) > BOOT_DEFAULT_BUDGET]
+    section_debt = [r for r in rows if r.get("section_truncated")]
+    return {
+        "budget": BOOT_DEFAULT_BUDGET,
+        "scanned": len(rows),
+        "max_chars": max((r.get("chars", 0) for r in rows), default=0),
+        "max_assembled_chars": max((r.get("assembled_chars", 0) for r in rows), default=0),
+        "hard": hard,
+        "section_debt": section_debt,
+        "rows": rows,
+    }
+
 
 # 强完成信号：命中即视为「已标完成」→ 必须已移走
 STRONG_SIGNALS = ("✅", "✔", "已执行完毕", "已完成：", "已完成:", "已结清", "已归档")
@@ -515,6 +551,8 @@ def scan_todo(todo_path: Path) -> dict:
         if g["matched_dir"] and g["completed_md"] is False
     ]
     unmapped = [g for g in groups if g["matched_dir"] is None]
+    active_projects = {g["matched_dir"] for g in groups if g["matched_dir"]}
+    boot_health = scan_boot_health(active_projects)
     missing_state = [
         {"group": g["title"], "dir": g["matched_dir"]}
         for g in groups
@@ -533,6 +571,7 @@ def scan_todo(todo_path: Path) -> dict:
         "unmapped_groups": unmapped,
         "missing_completed": missing_completed,
         "missing_state": missing_state,
+        "boot_health": boot_health,
         "cost": scan_opening_cost(),
         "scope": scan_scope_vocab(),
     }
@@ -608,32 +647,42 @@ def render(r: dict) -> str:
     out.append("")
 
     c = r.get("cost") or {}
-    out.append("## 五、Agent 启动成本（BOOT + 项目切片；阈值为策略常量，见脚本顶部）")
+    bh = r.get("boot_health") or {}
+    out.append("## 五、Agent 启动硬门禁 + 内容债报告")
     out.append("")
     if not c:
         out.append("（未采集——`--todo` 指向库外路径时跳过）")
     else:
-        approx = c["boot_approx_chars"]
-        out.append(f"- `Memory/BOOT.md`：{c['boot_chars']} 字符（限 {LIMIT_BOOT}）{'**超标**' if c['boot_over'] else 'ok'}")
-        out.append(f"- `Memory/_index.md`：{c['index_chars']} 字符（目录派生物，不计入启动成本）")
+        out.append(f"- `Memory/BOOT.md`：{c['boot_chars']} 字符（热层源政策限 {LIMIT_BOOT}）{'**超标**' if c['boot_over'] else 'ok'}")
+        out.append(f"- `Memory/_index.md`：{c['index_chars']} 字符（地图/目录，不计入启动）")
         out.append(f"- `Memory/Todo.md`：{r['char_total']} 字符（源文件；启动只取当前项目切片，不设源文件硬限）")
-        out.append(f"- `Projects/*/_overview.md`：共 {c['overview_total']} 份，最大 {c['worst_overview']} 字符（单份限 {LIMIT_OVERVIEW}）")
+        out.append(f"- `Projects/*/_overview.md`：共 {c['overview_total']} 份，最大 {c['worst_overview']} 字符（源政策限 {LIMIT_OVERVIEW}，报告项）")
         if c["overview_offenders"]:
-            out.append(f"  **待瘦身 {len(c['overview_offenders'])} 份**（细节移 `working/journal.md`/`plan.md`）：")
+            out.append(f"  **内容债 {len(c['overview_offenders'])} 份**（细节移 `working/journal.md`/`plan.md`，不阻断本次启动硬门禁）：")
             for o in c["overview_offenders"]:
                 out.append(f"  - `{o['project']}` {o['chars']} 字符")
         else:
-            out.append("  无单份超标。")
-        out.append(f"- `Projects/*/_state.md`：共 {c['state_total']} 份，最大 {c['worst_state']} 字符（单份限 {LIMIT_STATE}）")
+            out.append("  无源体量超标。")
+        out.append(f"- `Projects/*/_state.md`：共 {c['state_total']} 份，最大 {c['worst_state']} 字符（源政策限 {LIMIT_STATE}，报告项）")
         if c["state_offenders"]:
             for o in c["state_offenders"]:
                 out.append(f"  - `{o['project']}` {o['chars']} 字符")
         else:
-            out.append("  无单份超标。")
-        out.append(f"- 启动近似上限：{approx} 字符（BOOT + 最大 overview + 最大 state；限 {LIMIT_BOOT_APPROX}）{'**超标**' if approx > LIMIT_BOOT_APPROX else 'ok'}")
+            out.append("  无源体量超标。")
+        if bh:
+            out.append(f"- 实际启动包硬门禁：扫描 {bh['scanned']} 个项目，最大 text {bh['max_chars']} / assembled {bh['max_assembled_chars']} 字符（预算 {bh['budget']}）")
+            if bh["hard"]:
+                out.append(f"  **超预算 {len(bh['hard'])} 个项目**：")
+                for row in bh["hard"]:
+                    out.append(f"  - `{row['project']}` assembled={row.get('assembled_chars', '?')} budget_truncated={row.get('budget_truncated', '?')}")
+            else:
+                out.append("  通过：没有项目触发最终预算截断。")
+            active_debt = len([row for row in bh["section_debt"] if row.get("active")])
+            total_debt = len(bh["section_debt"])
+            out.append(f"- 内容债报告：overview 源超限 {len(c['overview_offenders'])} / state 源超限 {len(c['state_offenders'])} / section 截断 {total_debt}（活跃 {active_debt}）/ 缺 state {len(r.get('missing_state') or [])}")
+            out.append("  > 内容债不阻断 `--cost-check`；需要严格清零时用 `--content-check`。")
+        out.append(f"- 近似诊断（非门禁）：BOOT + 最大 overview + 最大 state = {c['boot_approx_chars']} 字符")
         out.append("")
-        out.append("> 实际启动包由 `memory_boot.py` 生成；`--budget` 约束 text 字段，JSON 元数据另计。")
-        out.append("> 季度维护只看待瘦身项数与超限项是否下降。")
     out.append("")
 
     s = r.get("scope") or {}
@@ -772,7 +821,8 @@ def main() -> int:
                          "此参数只为 fixture 验收可复现，日常运行不要带")
     ap.add_argument("-o", "--out", default=str(DEFAULT_OUT), help="报告输出路径")
     ap.add_argument("--check", action="store_true", help="门禁模式：有违规退出码 1")
-    ap.add_argument("--cost-check", action="store_true", help="门禁模式：Agent 启动成本超标即退出码 1（季度维护用）")
+    ap.add_argument("--cost-check", action="store_true", help="硬门禁：实际启动包 / BOOT 源政策超标即退出码 1")
+    ap.add_argument("--content-check", action="store_true", help="严格内容债门禁：overview/state/section 截断/缺 state 任一存在即退出码 1")
     ap.add_argument("--scope-check", action="store_true", help="门禁模式：`scope` 非法取值 / 冗余出现即退出码 1（季度维护用）")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     ap.add_argument("--quiet", action="store_true", help="不往 stdout 打印")
@@ -811,11 +861,13 @@ def main() -> int:
     claim_violations = len(claims["broken"])
     claim_notes = len(claims["unverifiable"])
     scope_violations = len(scope.get("bad") or []) + len(scope.get("redundant") or [])
-    cost_violations = (
+    boot_health = result.get("boot_health") or {}
+    cost_violations = (1 if cost.get("boot_over") else 0) + len(boot_health.get("hard") or [])
+    content_violations = (
         len(cost.get("overview_offenders") or [])
         + len(cost.get("state_offenders") or [])
-        + (1 if cost.get("boot_over") else 0)
-        + (1 if cost.get("boot_approx_chars", 0) > LIMIT_BOOT_APPROX else 0)
+        + len(result.get("missing_state") or [])
+        + len(boot_health.get("section_debt") or [])
     )
 
     out = Path(args.out)
@@ -828,7 +880,7 @@ def main() -> int:
     summary = (
         f"完成信号残留 {len(result['signals'])} 条 / 无对应目录分组 {len(result['unmapped_groups'])} 个 / "
         f"缺 completed.md 项目 {len(result['missing_completed'])} 个 / 删除线留档 {len(result['retired'])} 条 / "
-        f"Agent 启动成本待瘦身 {cost_violations} 项 / scope 违规 {scope_violations} 处 / "
+        f"Agent 启动硬门禁 {cost_violations} 项 / 内容债 {content_violations} 项 / scope 违规 {scope_violations} 处 / "
         f"Todo 假声明 {claim_violations} 处（另 {claim_notes} 条旧声明无法核对） / "
         f"暂存层待压缩（判压面=journal） {len((result['staging'] or {}).get('over') or [])} 份 / "
         f"type 词表违规 {type_violations} 处（另 {len(tv['missing'])} 篇缺 type） / "
@@ -864,16 +916,27 @@ def main() -> int:
         return 1
 
     if args.cost_check and cost_violations:
-        print(f"[!] Agent 启动成本 {cost_violations} 项超标 —— BOOT.md 只留稳定短内容；细节下沉 working/journal.md|plan.md", file=sys.stderr)
+        print(f"[!] Agent 启动硬门禁 {cost_violations} 项超标 —— 检查 BOOT 源政策或实际 assembled 启动包预算", file=sys.stderr)
+        return 1
+
+    if args.content_check and content_violations:
+        print(f"[!] 内容债 {content_violations} 项未清零 —— overview/state/section 截断/缺 state；本模式用于季度或切换验收", file=sys.stderr)
         return 1
 
     if args.scope_check and scope_violations:
         print(f"[!] scope 违规 {scope_violations} 处 —— 合法值 = global 或 Projects/ 目录名；Projects/ 层内与 _index.md 不填该字段", file=sys.stderr)
         return 1
 
-    print(f"[ok] 干净：无完成信号残留、分组名全部命中项目目录、Todo 声明可核对、`type` 取值在词表内" if not violations else f"[ok] --check 未启用，仅报告（{violations} 处违规）")
+    if violations:
+        print(f"[ok] --check 未启用，仅报告（{violations} 处违规）")
+    elif content_violations:
+        print(f"[ok] 结构门禁通过；内容债 {content_violations} 项（报告项，--content-check 可严格检查）")
+    else:
+        print("[ok] 干净：无完成信号残留、分组名全部命中项目目录、Todo 声明可核对、`type` 取值在词表内")
     if cost_violations and not args.cost_check:
-        print(f"[note] Agent 启动成本待瘦身 {cost_violations} 项 —— 不拦本次门禁，见报告第五节（季度只看项数增减）")
+        print(f"[note] 实际启动硬门禁 {cost_violations} 项 —— 见报告第五节")
+    if content_violations and not args.content_check:
+        print(f"[note] 内容债 {content_violations} 项 —— 不阻断 --cost-check；见报告第五节，严格检查用 --content-check")
     if scope_violations and not args.scope_check:
         print(f"[note] scope 违规 {scope_violations} 处 —— 不拦本次门禁，见报告第六节（季度用 --scope-check 拦）")
     if claim_notes:

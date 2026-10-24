@@ -114,6 +114,8 @@ def build_boot_pack(
         "chars": len(final_text),
         "source_chars": source_chars,
         "assembled_chars": len(full_text),
+        "section_truncated": any_section_truncated,
+        "budget_truncated": len(final_text) < len(full_text),
         "truncated": any_section_truncated or len(final_text) < len(full_text),
         "files": files,
         "sections": public_sections,
