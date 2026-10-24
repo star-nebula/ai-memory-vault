@@ -59,6 +59,12 @@ class SyncProjectHookTest(unittest.TestCase):
         self.assertEqual(sync.deploy_projects(check_only=True), 1)
         self.assertEqual(self.target.read_text(encoding="utf-8"), before)
 
+    def test_handwritten_hook_is_kept_unchanged(self):
+        handwritten = "# 手写项目规则\n\n不要自动覆盖。\n"
+        self.target.write_text(handwritten, encoding="utf-8")
+        self.assertEqual(sync.deploy_projects(check_only=False), 0)
+        self.assertEqual(self.target.read_text(encoding="utf-8"), handwritten)
+
 
 if __name__ == "__main__":
     unittest.main()
