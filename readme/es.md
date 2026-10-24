@@ -21,7 +21,7 @@
 2. **Un único lugar para la memoria** — en la configuración de cada herramienta solo vive un "puntero + gancho breve"; el contenido nunca.
 3. **Capas estructuradas** — `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects` + `Todo.md`·`Inbox/`·`Archive/`.
 4. **Contexto mínimo por defecto** — el agente no navega todo el árbol. `memory_boot.py` crea un paquete de inicio acotado y `memory_query.py` devuelve fragmentos ordenados solo cuando hace falta.
-5. **Cerrado = movido** — la tarea terminada o cancelada pasa a `working/completed.md` (con fecha, resultado, motivo y origen) y se elimina de `Todo.md`; nunca un ✅ ni un tachado permanente en el sitio.
+5. **Cerrado = movido** — la tarea terminada o cancelada pasa a `working/completed/YYYY-QX.md` (con fecha, resultado, motivo y origen) y se elimina de `Todo.md`; nunca un ✅ ni un tachado permanente en el sitio.
 6. **Solo los pasos con puerta de control se mantienen estables** — cada puerta nació de un incidente real ([docs/04](../docs/04-演化史-门禁背后的事故.md)).
 7. **Privacidad garantizada por guardas** — `.gitignore` + hook `pre-commit` que rechaza cualquier commit que toque `Memory/`.
 

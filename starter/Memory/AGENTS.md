@@ -14,8 +14,8 @@
 
 - 先读 `Memory/rule/写入与禁止.md` 对应分节，再写最终位置。
 - 每次写入后在同日 `Memory/Inbox/YYYY-MM-DD.md` 登记路径与一句话摘要。
-- 待办统一进 `Memory/Todo.md`。完成 = 追加到 `Projects/<项目名>/working/completed.md` 并从 Todo 删除，不在 Todo 中打勾。
-- `BOOT.md` 只放稳定、跨项目、短小的内容；项目状态放 `_state.md`，过程历史放 `journal.md`。
+- 待办统一进 `Memory/Todo.md`。完成 = 追加到 `Projects/<项目名>/working/completed/YYYY-QX.md` 并从 Todo 删除，不在 Todo 中打勾。
+- `BOOT.md` 只放稳定、跨项目、短小的内容；项目状态放 `_state.md`，过程历史放 `working/journal/YYYY-MM.md`。
 
 ## 铁律
 

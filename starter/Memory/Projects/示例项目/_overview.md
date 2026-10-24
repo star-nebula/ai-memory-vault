@@ -14,8 +14,8 @@ summary: 示例项目：演示项目层 `_overview` + `_state` + working 台账�
 
 ## 关键路径
 
-- `working/journal.md`：过程流水（时间倒序，每日一个 `## YYYY-MM-DD` 小节，暂存层）
-- `working/completed.md`：结案归档（「结案 = 移走」的落点，带日期、结果、原因与来源）
+- `working/journal/YYYY-MM.md`：过程流水（时间倒序，每日一个 `## YYYY-MM-DD` 小节，暂存层）
+- `working/completed/YYYY-QX.md`：结案归档（「结案 = 移走」的落点，带日期、结果、原因与来源）
 - `working/plan.md`：计划（需要时创建）
 
 ## 状态

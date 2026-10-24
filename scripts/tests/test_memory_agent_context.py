@@ -194,6 +194,26 @@ class MemoryAgentContextTest(unittest.TestCase):
         paths = [m["path"] for m in result["matches"]]
         self.assertIn("Decisions/old-memory.md", paths)
 
+    def test_query_history_can_reach_sharded_journal(self):
+        working = self.project / "working" / "journal"
+        working.mkdir(parents=True)
+        (working / "2026-10.md").write_text(
+            "---\ntype: journal\n---\n# 启动读取分片\n\n只在使用历史检索时返回。\n",
+            encoding="utf-8",
+        )
+        default = search_memory(self.memory, "启动读取分片", project="demo")
+        history = search_memory(
+            self.memory,
+            "启动读取分片",
+            project="demo",
+            include_history=True,
+        )
+        self.assertEqual(default["matches"], [])
+        self.assertEqual(
+            [match["path"] for match in history["matches"]],
+            ["Projects/demo/working/journal/2026-10.md"],
+        )
+
     def test_query_snippet_is_bounded(self):
         result = search_memory(self.memory, "启动读取", project="demo")
         self.assertTrue(result["matches"])

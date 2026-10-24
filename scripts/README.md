@@ -51,7 +51,8 @@ python todo_audit.py --inbox <目录> --audit-date YYYY-MM-DD   # 积压计数 f
 
 - **词表不写在脚本里**：`type` 合法值机读自 `Memory/rule/写入与禁止.md` 第 5 条的括号清单（解析失败 = 退出码 1，不静默通过）；`scope` 合法值 = `Projects/` 实盘目录名 ∪ `global`，实盘推导
 - **阈值在脚本、数字不进文档**：`LIMIT_BOOT` / `LIMIT_OVERVIEW` / `LIMIT_STATE` / `LIMIT_BOOT_APPROX` / `LIMIT_STAGING_CHARS` 是策略常量；实测只进报告
-- **暂存层判压面只收 `journal.md`**：`working/completed.md` 属终态层，只进「最重几份」观测面，不判压
+- **暂存层判压面只收 journal**：`working/journal.md` 与 `working/journal/*.md` 计压；`working/completed/` 属终态层，只进「最重几份」观测面，不判压
+- **分片兼容**：completed 默认写 `working/completed/YYYY-QX.md`，旧 `working/completed.md` 继续参与核对；journal 默认写 `working/journal/YYYY-MM.md`，旧单文件继续参与报告
 - **每日 Inbox 审核积压**（报告第十节）：`Inbox/` 根下登记日期早于运行当天的文件份数；**只报不拦**，成因可能是审核任务没跑，也可能是审过但「待本人决定」把整份扣住
 - 默认报告写文件而非 stdout（Windows 控制台 GBK 吞输出的环境教训）；`-o` 可改落点
 

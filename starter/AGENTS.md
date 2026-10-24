@@ -25,8 +25,8 @@
 
 ## 写入与读取的分工
 
-- 待办：`Memory/Todo.md`；完成 = 移走，追加到 `Projects/<项目名>/working/completed.md` 后从 Todo 删除。
-- 过程历史：`Projects/<项目名>/working/journal.md`；默认不读全文，需要时用 `memory_query.py --include-history`。
+- 待办：`Memory/Todo.md`；完成 = 移走，追加到 `Projects/<项目名>/working/completed/YYYY-QX.md` 后从 Todo 删除。
+- 过程历史：`Projects/<项目名>/working/journal/YYYY-MM.md`；默认不读全文，需要时用 `memory_query.py --include-history`。
 - 长期知识：`Preferences/`、`Plans/`、`Decisions/`、`Lessons/`、`Workflows/`；按任务检索，不按目录通读。
 - `Memory/BOOT.md` 是唯一常驻热层，只放稳定、跨项目、短小的内容。
 

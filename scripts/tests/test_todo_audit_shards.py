@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+
+SCRIPTS = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SCRIPTS))
+
+import todo_audit
+
+
+class TodoAuditShardTest(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.memory = Path(self.temp.name) / "Memory"
+        self.projects = self.memory / "Projects"
+        self.working = self.projects / "demo" / "working"
+        self.working.mkdir(parents=True)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def test_has_completed_accepts_legacy_file_or_quarter_shard(self):
+        project = self.projects / "legacy"
+        (project / "working").mkdir(parents=True)
+        (project / "working" / "completed.md").write_text("legacy", encoding="utf-8")
+        self.assertTrue(todo_audit.has_completed(project))
+
+        project = self.projects / "sharded"
+        (project / "working" / "completed").mkdir(parents=True)
+        (project / "working" / "completed" / "2026-Q4.md").write_text("new", encoding="utf-8")
+        self.assertTrue(todo_audit.has_completed(project))
+
+    def test_staging_scan_includes_journal_and_completed_shards(self):
+        (self.working / "journal").mkdir()
+        (self.working / "completed").mkdir()
+        (self.working / "journal" / "2026-10.md").write_text("j" * 20, encoding="utf-8")
+        (self.working / "completed" / "2026-Q4.md").write_text("c" * 10, encoding="utf-8")
+
+        with patch.object(todo_audit, "PROJECTS_DIR", self.projects):
+            result = todo_audit.scan_staging_volume()
+
+        self.assertEqual(result["scanned"], 2)
+        self.assertEqual(result["scanned_journal"], 1)
+        self.assertEqual(
+            {row["file"] for row in result["heaviest"]},
+            {"journal/2026-10.md", "completed/2026-Q4.md"},
+        )
+
+    def test_claim_checks_read_sharded_journal_and_completed(self):
+        todo = self.memory / "Todo.md"
+        todo.write_text("# Todo\n", encoding="utf-8")
+        (self.working / "journal").mkdir()
+        (self.working / "completed").mkdir()
+        (self.working / "journal" / "2026-10.md").write_text(
+            "Todo → 「完成分片迁移」\n",
+            encoding="utf-8",
+        )
+        (self.working / "completed" / "2026-Q4.md").write_text(
+            "- 2026-10-24 完成分片迁移\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(todo_audit, "PROJECTS_DIR", self.projects), \
+                patch.object(todo_audit, "MEMORY_DIR", self.memory):
+            result = todo_audit.scan_todo_claims(todo)
+
+        self.assertEqual(result["broken"], [])
+        self.assertEqual(result["unverifiable"], [])
+
+
+if __name__ == "__main__":
+    unittest.main()

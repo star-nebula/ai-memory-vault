@@ -14,7 +14,7 @@
 
 1. 先读 `Memory/rule/写入与禁止.md` 对应分节，再写最终位置。
 2. 每次写入后在同日 `Memory/Inbox/YYYY-MM-DD.md` 登记路径与一句话摘要。
-3. 待办统一进 `Memory/Todo.md`；完成 = 追加到 `Projects/<项目名>/working/completed.md` 并从 Todo 删除。
+3. 待办统一进 `Memory/Todo.md`；完成 = 追加到 `Projects/<项目名>/working/completed/YYYY-QX.md` 并从 Todo 删除。
 4. 用户手改的文件绝不自动改；决策反转新建笔记并互链。
 
 ## 禁止

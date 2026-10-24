@@ -21,7 +21,7 @@
 2. **기억의 저장소는 하나** — 도구 쪽 설정에는 "포인터 + 짧은 훅"만. 기억 내용은 쓰지 않는다.
 3. **구조화된 계층** — `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects` + `Todo.md`·`Inbox/`·`Archive/`.
 4. **기본은 최소 컨텍스트** — Agent는 기억 트리 전체를 탐색하지 않습니다. `memory_boot.py`는 예산 내 시작 패키지를 만들고, `memory_query.py`는 필요할 때만 순위가 매겨진 스니펫을 반환합니다.
-5. **종결 = 이동** — 완료·취소한 할 일은 `working/completed.md`로(날짜·결과·이유·출처 포함) 옮기고 Todo에서 삭제. 자리에 ✅나 영구 취소선을 남기지 않음.
+5. **종결 = 이동** — 완료·취소한 할 일은 `working/completed/YYYY-QX.md`로(날짜·결과·이유·출처 포함) 옮기고 Todo에서 삭제. 자리에 ✅나 영구 취소선을 남기지 않음.
 6. **게이트 있는 공정만 무너지지 않는다** — 모든 게이트에는 실제 사고의 배경이 있음([docs/04](../docs/04-演化史-门禁背后的事故.md)).
 7. **프라이버시는 가드로** — `.gitignore` + `pre-commit` 훅이 `Memory/` 관련 커밋을 거부.
 

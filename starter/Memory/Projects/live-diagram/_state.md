@@ -7,7 +7,7 @@ tags: [live-diagram, 当前状态]
 
 # live-diagram · 当前状态
 
-> 只放“现在要做什么”，每次会话覆盖更新；历史写 `working/journal.md`。
+> 只放“现在要做什么”，每次会话覆盖更新；历史写 `working/journal/YYYY-MM.md`。
 
 ## 当前目标
 

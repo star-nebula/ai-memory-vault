@@ -2,7 +2,7 @@
 """Todo 归档体检 —— 校验 `Memory/Todo.md` 是否守住「完成 = 移走」。
 
 背景（2026-09-21）：
-    「待办 → `Memory/Todo.md`；完成 → `Projects/<项目名>/working/completed.md`」
+    「待办 → `Memory/Todo.md`；完成 → `Projects/<项目名>/working/completed/YYYY-QX.md`」
     这条链路原本只写在会话收尾 checklist 里，**没有任何门禁**，于是静默积累
     「已标完成却未移走」的条目（实测 4 条，含一条 2000 字符的重复复盘）。
     对比：断链有 `link_audit.py`，唯独待办归档没有。
@@ -11,7 +11,7 @@
 检查清单（**计数不在此维护**，以本文件的 `scan_*` 函数为准——写死「N 件事」就是第二份事实源，加一项就漂）：
     1. 完成信号残留 —— Todo 里带完成标记、但未移走的条目（违规）
     2. 分组名映射   —— `## 分组` 标题必须等于 `Projects/` 下的目录名（规则要求）
-    3. completed.md —— 被 Todo 提到的项目是否已有 `working/completed.md`
+    3. completed 归档 —— 被 Todo 提到的项目是否已有 `working/completed/` 分片（兼容旧单文件）
     4. Agent 启动硬门禁 + 内容债 —— BOOT 源政策、实际 assembled 启动包为硬门禁；overview/state 源超限与 section 截断为报告项
     5. scope 词表   —— 跨层归属字段的非法取值与冗余出现（2026-09-29 增，报告项；
                      合法值 = `global` ∪ `Projects/` 目录名，由实盘推导、脚本内不写死词表）
@@ -132,6 +132,32 @@ LIMIT_BOOT_APPROX = BOOT_DEFAULT_BUDGET
 LIMIT_STAGING_CHARS = 40000
 STAGING_REPORT_TOP = 5      # 「按字符数最重的 N 份」呈报条数（纯展示参数，非阈值）
 
+WORKING_JOURNAL_GLOBS = (
+    "*/working/journal.md",
+    "*/working/journal/*.md",
+)
+WORKING_COMPLETED_GLOBS = (
+    "*/working/completed.md",
+    "*/working/completed/*.md",
+)
+
+
+def _working_files() -> list[Path]:
+    if not PROJECTS_DIR.is_dir():
+        return []
+    paths = []
+    for pattern in WORKING_JOURNAL_GLOBS + WORKING_COMPLETED_GLOBS:
+        paths.extend(PROJECTS_DIR.glob(pattern))
+    return sorted({p for p in paths if p.is_file()})
+
+
+def _working_project(path: Path) -> str:
+    return path.relative_to(PROJECTS_DIR).parts[0]
+
+
+def _working_kind(path: Path) -> str:
+    return "completed" if path.name == "completed.md" or path.parent.name == "completed" else "journal"
+
 
 def char_len(path: Path) -> int:
     return len(read_text(path)) if path.is_file() else 0
@@ -203,23 +229,23 @@ STRONG_SIGNALS = ("✅", "✔", "已执行完毕", "已完成：", "已完成:",
 def scan_staging_volume() -> dict:
     """暂存层体量 —— 两个面分开，别把它们混成一件。
 
-    **判压面（`over`）= 只 `journal.md`**：超过 `LIMIT_STAGING_CHARS` 才叫「该把旧段压成阶段小结」。
-    **观测面（`heaviest`）= journal 与 completed 混排最重几份**：`completed.md` 属**终态层**，
+    **判压面（`over`）= journal 主文件与月分片**：超过 `LIMIT_STAGING_CHARS` 才叫「该把旧段压成阶段小结」。
+    **观测面（`heaviest`）= journal 与 completed 混排最重几份**：completed 属**终态层**，
     对它只报体量、不判压——它没有按日小节（无「旧段」可切单元），同时又是「七、」假声明
     核对的证据面（压掉可能当场把门禁判红）。**覆盖面可以收窄，观测不能归零。**
 
     只报告不拦：蒸馏是渐进动作，存量不可能当天清零（恒红的门禁等于没有门禁）。
     口径正本 = `rule/写入与禁止.md` 第 3 条；阈值 = 上面的 `LIMIT_STAGING_CHARS`（策略在脚本、事实在报告）。
     """
-    files = []
-    if PROJECTS_DIR.is_dir():
-        files = sorted(list(PROJECTS_DIR.glob("*/working/journal.md"))
-                       + list(PROJECTS_DIR.glob("*/working/completed.md")))
+    files = _working_files()
     rows = []
     for f in files:
         text = read_text(f)
-        rows.append({"project": f.parent.parent.name, "file": f.name,
-                     "kind": "journal" if f.name == "journal.md" else "completed",
+        project = _working_project(f)
+        working = PROJECTS_DIR / project / "working"
+        rows.append({"project": project,
+                     "file": f.relative_to(working).as_posix(),
+                     "kind": _working_kind(f),
                      "lines": len(text.splitlines()), "chars": len(text)})
     over = sorted([x for x in rows if x["kind"] == "journal" and x["chars"] > LIMIT_STAGING_CHARS],
                   key=lambda x: -x["chars"])
@@ -429,27 +455,36 @@ def project_dirs() -> dict[str, Path]:
 
 
 def has_completed(dirname_path: Path) -> bool:
-    return (dirname_path / "working" / "completed.md").is_file()
+    working = dirname_path / "working"
+    return (working / "completed.md").is_file() or any((working / "completed").glob("*.md"))
 
 
 # —— journal/plan 里「已并入 Todo」这类声明的核对（2026-09-30 增）——
 # 病灶：journal 写下「待修项已并入 Todo ## 某组」，实测 Todo 里从来没有那条 → 静默挂起三天。
 # 合规形态：`Todo → 「条目标题」`（引号里必须是 Todo 行里逐字出现的一段标题文字）。
-# 引号标题的核对面 = Todo.md ∪ **所有** working/completed.md：「完成 = 移走」会让条目离开 Todo，
+# 引号标题的核对面 = Todo.md ∪ **所有** completed 归档（季度分片 + 旧单文件）：
+# 「完成 = 移走」会让条目离开 Todo，
 # 只查 Todo 会在条目归档当天把声明判红 —— 恒红的门禁等于没有门禁。
 # 旧写法（无指针形态）无法机器核对 → **仅提示不拦**（历史欠账，季度看条数下降，口径同 `scope` 缺字段）。
 TODO_CLAIM_RE = re.compile(r"(已并入|已写入|已加入|已登记到|已挂进|已挂|已转|已记入)\s*[`「]?\s*Todo")
 TODO_POINTER_RE = re.compile(r"Todo[^「]{0,24}?→\s*「([^」]{4,60})」")
-CLAIM_SCAN_GLOBS = ("*/working/journal.md", "*/working/plan.md")
+CLAIM_SCAN_GLOBS = (
+    "*/working/journal.md",
+    "*/working/journal/*.md",
+    "*/working/plan.md",
+)
 
 
 def scan_todo_claims(todo_path: Path) -> dict:
-    """核对「已并入 Todo」声明：带指针形态的必须在 Todo 或任一 completed.md 命中；无指针形态的只提示。"""
+    """核对「已并入 Todo」声明：带指针形态的必须在 Todo 或任一 completed 归档命中；无指针形态的只提示。"""
     corpus = []
     if todo_path.is_file():
         corpus.append(read_text(todo_path))
-    for cm in sorted(PROJECTS_DIR.glob("*/working/completed.md")) if PROJECTS_DIR.is_dir() else []:
-        corpus.append(read_text(cm))
+    if PROJECTS_DIR.is_dir():
+        for pattern in WORKING_COMPLETED_GLOBS:
+            for cm in sorted(PROJECTS_DIR.glob(pattern)):
+                if cm.is_file():
+                    corpus.append(read_text(cm))
     broken, unverifiable = [], []
     for glob in CLAIM_SCAN_GLOBS:
         for f in sorted(PROJECTS_DIR.glob(glob)) if PROJECTS_DIR.is_dir() else []:
@@ -538,7 +573,7 @@ def scan_todo(todo_path: Path) -> dict:
                 "text": stripped[:120],
             })
 
-    # 分组 → completed.md 缺失汇总
+    # 分组 → completed 归档缺失汇总
     missing_completed = [
         {"group": g["title"], "dir": g["matched_dir"]}
         for g in groups
@@ -594,7 +629,7 @@ def render(r: dict) -> str:
 
     out.append("## 二、分组名 ↔ 项目目录映射（规则：分组标题取 `Projects/` 目录名）")
     out.append("")
-    out.append("| L | 分组标题 | 解析为 | 目录命中 | completed.md |")
+    out.append("| L | 分组标题 | 解析为 | 目录命中 | completed 归档 |")
     out.append("|---|---|---|---|---|")
     for g in r["groups"]:
         cm = g["completed_md"]
@@ -609,11 +644,11 @@ def render(r: dict) -> str:
         out.append("分组名全部命中项目目录。")
     out.append("")
     if r["missing_completed"]:
-        out.append(f"**缺 `working/completed.md` 的项目 {len(r['missing_completed'])} 个**（归档前先建文件）：")
+        out.append(f"**缺 completed 归档的项目 {len(r['missing_completed'])} 个**（归档前先建季度分片）：")
         for m in r["missing_completed"]:
-            out.append(f"- `Projects/{m['dir']}/working/completed.md`（分组「{m['group']}」）")
+            out.append(f"- `Projects/{m['dir']}/working/completed/YYYY-QX.md`（分组「{m['group']}」）")
     else:
-        out.append("被 Todo 引用的项目均有 `completed.md`。")
+        out.append("被 Todo 引用的项目均有 completed 归档（季度分片或旧单文件）。")
     if r.get("missing_state"):
         out.append(f"**缺项目 `_state.md` 的活跃项目 {len(r['missing_state'])} 个**（报告项：项目状态无法进入启动包）：")
         for m in r["missing_state"]:
@@ -651,7 +686,7 @@ def render(r: dict) -> str:
         out.append(f"- `Memory/Todo.md`：{r['char_total']} 字符（源文件；启动只取当前项目切片，不设源文件硬限）")
         out.append(f"- `Projects/*/_overview.md`：共 {c['overview_total']} 份，最大 {c['worst_overview']} 字符（源政策限 {LIMIT_OVERVIEW}，报告项）")
         if c["overview_offenders"]:
-            out.append(f"  **内容债 {len(c['overview_offenders'])} 份**（细节移 `working/journal.md`/`plan.md`，不阻断本次启动硬门禁）：")
+            out.append(f"  **内容债 {len(c['overview_offenders'])} 份**（细节移 `working/journal/YYYY-MM.md` / `plan.md`，不阻断本次启动硬门禁）：")
             for o in c["overview_offenders"]:
                 out.append(f"  - `{o['project']}` {o['chars']} 字符")
         else:
@@ -714,7 +749,7 @@ def render(r: dict) -> str:
         out.append("（未采集）")
     else:
         if cl["broken"]:
-            out.append(f"  **假声明 {len(cl['broken'])} 处（拦）**——声明的标题在 Todo 与任何 completed.md 都查不到：")
+            out.append(f"  **假声明 {len(cl['broken'])} 处（拦）**——声明的标题在 Todo 与任何 completed 归档都查不到：")
             for b in cl["broken"]:
                 out.append(f"  - `{b['file']}:{b['line']}`（{b['project']}）声明「{b['title']}」")
         else:
@@ -727,7 +762,7 @@ def render(r: dict) -> str:
             out.append("- 无「无法核对」的旧声明。")
         out.append("")
         out.append("> 合规形态：`… Todo → 「条目在 Todo 里的标题片段」`。"
-                   "核对面 = `Todo.md` ∪ 所有 `working/completed.md`——「完成 = 移走」会让条目离开 Todo，"
+                   "核对面 = `Todo.md` ∪ 所有 `working/completed/` 分片（兼容旧单文件）——「完成 = 移走」会让条目离开 Todo，"
                    "只查 Todo 就会在归档当天把声明判成红（恒红的门禁等于没有门禁）。")
     out.append("")
     st = r.get("staging") or {}
@@ -736,7 +771,7 @@ def render(r: dict) -> str:
     if not st:
         out.append("（未采集）")
     else:
-        out.append(f"- 扫描 `Projects/*/working/` 下 journal 与 completed 共 {st['scanned']} 份"
+        out.append(f"- 扫描 `Projects/*/working/` 下 journal 与 completed 归档共 {st['scanned']} 份"
                    f"（其中 journal {st.get('scanned_journal', 0)} 份），"
                    f"阈值口径 = **字符数** {LIMIT_STAGING_CHARS} 字符/份（**阈值是本文件顶部常量，本段是实测**）。")
         if st["over"]:
@@ -750,7 +785,7 @@ def render(r: dict) -> str:
             flag = "  ← journal 超阈值" if x.get("kind") == "journal" and x["chars"] > LIMIT_STAGING_CHARS else ""
             out.append(f"  - `Projects/{x['project']}/working/{x['file']}` {x['chars']} 字符 / {x['lines']} 行{flag}")
         out.append("")
-        out.append("> **判压面只收 journal**：`working/completed.md` 属终态层，没有按日小节、无「旧段」可切；"
+        out.append("> **判压面只收 journal**：completed 归档属终态层，没有按日小节、无「旧段」可切；"
                    "同时它是「七、」假声明核对的证据面，压掉可能当场把门禁判红。只报体量、不判压。")
         out.append("> **单位为什么是字符不是行**：journal 常把一整段实测叙述写成一行，单行动辄上千字符，"
                    "行数口径可能永不触发；行数在本段只作阅读参考列。")
@@ -872,7 +907,7 @@ def main() -> int:
 
     summary = (
         f"完成信号残留 {len(result['signals'])} 条 / 无对应目录分组 {len(result['unmapped_groups'])} 个 / "
-        f"缺 completed.md 项目 {len(result['missing_completed'])} 个 / 删除线留档 {len(result['retired'])} 条 / "
+        f"缺 completed 归档项目 {len(result['missing_completed'])} 个 / 删除线留档 {len(result['retired'])} 条 / "
         f"Agent 启动硬门禁 {cost_violations} 项 / 内容债 {content_violations} 项 / scope 违规 {scope_violations} 处 / "
         f"Todo 假声明 {claim_violations} 处（另 {claim_notes} 条旧声明无法核对） / "
         f"暂存层待压缩（判压面=journal） {len((result['staging'] or {}).get('over') or [])} 份 / "
@@ -892,7 +927,7 @@ def main() -> int:
         for x in (scope.get("redundant") or [])[:20]:
             print(f"  scope 冗余出现: {x}")
         for b in claims["broken"][:20]:
-            print(f"  Todo 假声明: {b['file']}:{b['line']} 声明的「{b['title']}」在 Todo 与任何 completed.md 都查不到")
+            print(f"  Todo 假声明: {b['file']}:{b['line']} 声明的「{b['title']}」在 Todo 与任何 completed 归档都查不到")
         for b in tv["bad"][:20]:
             print(f"  type 词表外取值: {b['file']} -> {b['value']}")
         for x in backlog[:20]:
@@ -905,7 +940,7 @@ def main() -> int:
                 print(f"[!] {b['file']}:{b['line']} 「{b['title']}」查无此条 —— "
                       f"要么把它真写进 Todo，要么删改这句声明", file=sys.stderr)
         if violations - claim_violations:
-            print(f"[!] 有 {violations} 处违规 —— 完成 = 移走（追加到 working/completed.md 并从 Todo 删除该条）", file=sys.stderr)
+            print(f"[!] 有 {violations} 处违规 —— 完成 = 移走（追加到 working/completed/YYYY-QX.md 并从 Todo 删除该条）", file=sys.stderr)
         return 1
 
     if args.cost_check and cost_violations:

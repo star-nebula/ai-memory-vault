@@ -22,6 +22,6 @@
 ## 写入与收尾
 
 - 写前先查同主题笔记；跨层笔记按 `scope` 归属，`Projects/` 内不填 `scope`。
-- 待办进 `Todo.md`；完成或取消 = 移走，追加到项目 `working/completed.md` 并从 Todo 删除。
+- 待办进 `Todo.md`；完成或取消 = 移走，追加到项目 `working/completed/YYYY-QX.md` 并从 Todo 删除。
 - 会话结束只把值得跨会话保留的内容写到最终位置；不把整段对话抄进记忆库。
 - 用户手改的文件绝不自动改；决策反转新建笔记并互链。
