@@ -1,6 +1,6 @@
 # scripts —— 门禁与运维脚本
 
-六个脚本全部**仅用 Python 标准库**（3.9+），无第三方依赖。
+七个脚本全部**仅用 Python 标准库**（3.9+），无第三方依赖。
 
 ## 记忆库定位（Agent 脚本与门禁共用）
 
@@ -36,7 +36,7 @@ python memory_query.py "关键词" --all-projects --json
 - 指定项目时，`Projects/<项目>` 之外的项目树不会进入结果；跨层笔记必须 `scope` 为该项目的名称或 `global`。
 - 默认跳过 `Inbox/`、`Archive/`、`working/`；查历史时加 `--include-history`。
 - `text` 返回路径、类型、scope、status、更新日期和片段，不展开整篇笔记；`--json` 的 `matches` 只放元数据，避免重复正文。
-## `todo_audit.py` —— 待办归档体检（门禁 ②④ + 报告项）
+## `todo_audit.py` —— 待办归档体检（日常门禁 + 季度门禁 + 报告项）
 
 把「**完成 = 移走**」变成可校验项。
 
@@ -54,6 +54,19 @@ python todo_audit.py --inbox <目录> --audit-date YYYY-MM-DD   # 积压计数 f
 - **暂存层判压面只收 `journal.md`**：`working/completed.md` 属终态层，只进「最重几份」观测面，不判压
 - **每日 Inbox 审核积压**（报告第十节）：`Inbox/` 根下登记日期早于运行当天的文件份数；**只报不拦**，成因可能是审核任务没跑，也可能是审过但「待本人决定」把整份扣住
 - 默认报告写文件而非 stdout（Windows 控制台 GBK 吞输出的环境教训）；`-o` 可改落点
+
+## `state_audit.py` —— 项目状态健康报告
+
+```bash
+python state_audit.py
+python state_audit.py --json
+python state_audit.py --strict
+python state_audit.py --max-age-days 30 -o scripts/_out/state_audit.txt
+```
+
+- 从 `Todo.md` 的项目分组取出活跃项目，检查每个项目的 `_state.md` 是否存在、是否为占位卡、`updated` 是否过期、正文是否超过 1000 字符。
+- **默认只报告、退出码 0**；`--strict` 在 missing / placeholder / stale / too_large 任一项存在时退出 1。
+- 不做自动修改：活跃项目的真实状态必须由对应会话核实后写入，不能用统一模板批量伪造。
 
 ## `encoding_guard.py` —— 编码守卫 + 裸控制符门（门禁 ③）
 

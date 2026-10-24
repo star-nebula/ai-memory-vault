@@ -109,6 +109,7 @@ Memory/rule/
 | `memory_boot.py` | 会话启动无界、section 静默截断、缺少项目上下文 | 开场读取过多 |
 | `memory_query.py` | 展开整篇笔记、项目/scope 泄漏、默认返回 archived/superseded | 全库检索噪声过大 |
 | `todo_audit.py` | 完成信号残留、分组名与项目目录不映射、"已并入 Todo"假声明、`type`/`scope` 词表；Inbox 审核积压（只报告） | 声称已归档的条目静默挂起三天 |
+| `state_audit.py` | 活跃项目的 `_state.md` 缺失、仍是占位、过期或过长（默认只报告） | 状态卡建立后无人核实 |
 | `encoding_guard.py` | 非 UTF-8 / BOM 残留、AI 转义吞字留下的裸控制符（让 grep 集体失明的隐形杀手） | `\v` 被当转义吃掉，坏指针存活 7 天 |
 | `sync_memory_instructions.py` | 多工具指令位与真源的漂移、真源裸控制符、`<项目名>` 声明位伪值 | 部署链"只有部署没有校验" |
 

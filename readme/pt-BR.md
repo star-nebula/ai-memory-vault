@@ -60,6 +60,7 @@ python scripts/encoding_guard.py <caminho> # porteira: codificação + caractere
 |---|---|
 | `memory_boot.py` | Inicialização sem limite · truncamento silencioso · falta de contexto do projeto |
 | `memory_query.py` | Expansão de notas inteiras · vazamento de project/scope · archived/superseded incluídos por padrão |
+| `state_audit.py` | `_state.md` de projetos ativos ausente, provisório, desatualizado ou longo demais (apenas relatório por padrão) |
 | `todo_audit.py` | Tarefas "feitas" mas não movidas · grupos sem diretório de projeto · falsas alegações de "já movido ao Todo" · tipos fora do vocabulário · acúmulo de auditoria do Inbox (apenas relatório) |
 | `encoding_guard.py` | Não UTF-8 / BOM · caracteres de controle deixados por escapes engolidos pela IA (invisíveis para o grep) |
 | `sync_memory_instructions.py` | Deriva entre o slot de instruções de cada ferramenta e a fonte única · contaminação da fonte · pseudo-valor `<项目名>` |

@@ -20,6 +20,7 @@ cp -r starter/* scripts /path/to/your-vault/
 python scripts/memory_boot.py --cwd . --json          # 启动包与字符预算
 python scripts/memory_query.py "验证" --cwd . --json   # 有界检索
 python scripts/todo_audit.py --check                  # 应输出 [ok] 干净
+python scripts/state_audit.py                         # 项目状态健康报告
 python scripts/encoding_guard.py Memory --no-ctrl     # 编码检查
 ```
 
