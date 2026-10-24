@@ -266,6 +266,51 @@ class MemoryAgentContextTest(unittest.TestCase):
             ["Lessons/layer-lesson.md"],
         )
 
+    def test_query_rejects_unknown_layer(self):
+        with self.assertRaisesRegex(ValueError, "unknown layers"):
+            search_memory(
+                self.memory,
+                "层级过滤命中",
+                project="demo",
+                layers=["Decisons"],
+            )
+
+    def test_query_counts_undated_matching_notes_when_window_is_active(self):
+        (self.memory / "Lessons" / "undated.md").write_text(
+            "---\ntype: lesson\nscope: demo\nstatus: active\n---\n"
+            "# 无日期命中\n\n没有 created / updated。\n",
+            encoding="utf-8",
+        )
+        result = search_memory(
+            self.memory,
+            "无日期命中",
+            project="demo",
+            since=date(2026, 10, 1),
+        )
+        self.assertEqual(result["matches"], [])
+        self.assertEqual(result["undated_skipped"], 1)
+
+    def test_query_uses_created_to_updated_range(self):
+        (self.memory / "Lessons" / "long-range.md").write_text(
+            "---\ntype: lesson\nscope: demo\nstatus: active\n"
+            "created: 2026-08-01\nupdated: 2026-10-01\n---\n"
+            "# 跨期命中\n\n长期有效的结论。\n",
+            encoding="utf-8",
+        )
+        result = search_memory(
+            self.memory,
+            "跨期命中",
+            project="demo",
+            since=date(2026, 8, 15),
+            until=date(2026, 8, 31),
+        )
+        self.assertEqual(
+            [match["path"] for match in result["matches"]],
+            ["Lessons/long-range.md"],
+        )
+        self.assertEqual(result["matches"][0]["date_from"], "2026-08-01")
+        self.assertEqual(result["matches"][0]["date_to"], "2026-10-01")
+
     def test_query_snippet_is_bounded(self):
         result = search_memory(self.memory, "启动读取", project="demo")
         self.assertTrue(result["matches"])

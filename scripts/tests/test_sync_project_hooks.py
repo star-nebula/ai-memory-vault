@@ -18,7 +18,7 @@ class SyncProjectHookTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.code_root = self.root / "projects"
-        self.target_dir = self.code_root / "demo"
+        self.target_dir = self.code_root / "group" / "demo"
         self.target_dir.mkdir(parents=True)
         self.target = self.target_dir / "AGENTS.md"
         self.target.write_text(
@@ -64,6 +64,23 @@ class SyncProjectHookTest(unittest.TestCase):
         self.target.write_text(handwritten, encoding="utf-8")
         self.assertEqual(sync.deploy_projects(check_only=False), 0)
         self.assertEqual(self.target.read_text(encoding="utf-8"), handwritten)
+
+    def test_overview_root_requires_explicit_marker(self):
+        overview = self.memory / "Projects" / "demo" / "_overview.md"
+        overview.write_text(
+            f"题材来源：`{self.target_dir}`\n",
+            encoding="utf-8",
+        )
+        self.assertIsNone(sync.roots_from_overview("demo"))
+
+        overview.write_text(
+            f"代码根：`{self.target_dir}`\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            sync.roots_from_overview("demo"),
+            str(self.target_dir),
+        )
 
 
 if __name__ == "__main__":

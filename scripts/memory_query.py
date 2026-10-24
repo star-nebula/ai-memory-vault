@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from memory_common import (
-    InvalidProjectError,
     detect_project,
     find_memory_dir,
     first_heading,
@@ -89,10 +88,13 @@ def _note_date_bounds(
     if quarter and path.parent.name == "completed":
         return _quarter_bounds(int(quarter.group(1)), int(quarter.group(2)))
 
-    for key in ("updated", "created"):
-        parsed = _parse_date(frontmatter.get(key, ""))
-        if parsed:
-            return parsed, parsed
+    created = _parse_date(frontmatter.get("created", ""))
+    updated = _parse_date(frontmatter.get("updated", ""))
+    if created and updated:
+        return min(created, updated), max(created, updated)
+    if created or updated:
+        point = created or updated
+        return point, point
     return None
 
 
@@ -191,11 +193,27 @@ def search_memory(
 
     terms = query_terms(query)
     if not terms:
-        return {"query": query, "project": project, "matches": [], "total_before_budget": 0}
+        return {
+            "query": query,
+            "project": project,
+            "matches": [],
+            "total_before_budget": 0,
+            "undated_skipped": 0,
+        }
 
     type_filter = {t.strip().lower() for t in types or [] if t.strip()}
     layer_filter = {layer.strip().lower() for layer in layers or [] if layer.strip()}
+    if layer_filter:
+        available_layers = {
+            path.name.lower()
+            for path in memory_dir.iterdir()
+            if path.is_dir() and not path.name.startswith(".")
+        }
+        unknown_layers = sorted(layer_filter - available_layers)
+        if unknown_layers:
+            raise ValueError("unknown layers: %s" % ", ".join(unknown_layers))
     matches: List[Dict[str, object]] = []
+    undated_skipped = 0
 
     for path, rel_parts in _iter_notes(
         memory_dir,
@@ -215,10 +233,6 @@ def search_memory(
         if not include_inactive and _is_inactive(status):
             continue
         scope = frontmatter.get("scope", "")
-        bounds = _note_date_bounds(path, frontmatter, body) if (since or until) else None
-        if (since or until) and (bounds is None or not _overlaps(bounds, since, until)):
-            continue
-
         in_project_tree = len(rel_parts) >= 2 and rel_parts[0] == "Projects"
         if project:
             if in_project_tree and rel_parts[1].casefold() != project.casefold():
@@ -236,6 +250,13 @@ def search_memory(
         counts = {term: searchable.count(term) for term in terms}
         if not any(counts.values()):
             continue
+        bounds = _note_date_bounds(path, frontmatter, body) if (since or until) else None
+        if since or until:
+            if bounds is None:
+                undated_skipped += 1
+                continue
+            if not _overlaps(bounds, since, until):
+                continue
 
         title_low = normalize_search_text(title)
         heading_low = normalize_search_text(headings)
@@ -270,7 +291,13 @@ def search_memory(
 
     matches.sort(key=lambda item: (int(item["score"]), str(item.get("updated", ""))), reverse=True)
     total = len(matches)
-    return {"query": query, "project": project, "matches": matches[:limit], "total_before_budget": total}
+    return {
+        "query": query,
+        "project": project,
+        "matches": matches[:limit],
+        "total_before_budget": total,
+        "undated_skipped": undated_skipped,
+    }
 
 
 def _render_text(result: Dict[str, object], budget: int) -> str:
@@ -351,7 +378,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             until=until,
             layers=layers,
         )
-    except InvalidProjectError as exc:
+    except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 2
 

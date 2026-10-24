@@ -111,6 +111,7 @@ python sync_memory_instructions.py --projects   # 新建/更新脚本生成的�
 - **声明位伪值门**：检查真源 / 分发手册 / `Memory/AGENTS.md` / `Memory/Rule.md` 里「当前项目名」后面不得出现 `<项目名>`；项目名只能由 `memory_boot.py` / `memory_query.py` 在运行时判定
 - **部署目标在脚本顶部 `TARGETS` 配置，默认全注释——clone 后直接跑不会碰你的工具位**；启用分发时解开你要的工具（支持 `~` 展开；`file` 软链退化复制 / `json-inject` 注入 JSON 键两种形态），未安装的工具自动 SKIP
 - **先 `--check` 再部署**：定位类脚本的输出面是别人的配置文件，写下去就不是本地可逆动作
+- `--projects` 的 overview 兜底只认“代码根 / 代码位置 / 位置 / 路径”等显式标记行，避免把仅被提及的仓库误当项目根；部署或校验出现内部失败时返回码 1
 - 项目级钩子含真实路径 → **只留本地**，所在 git 仓用 `.git/info/exclude` 忽略（不要写 `.gitignore`——提交它就会把钩子文件名披露给远端）
 
 ## 收尾 / 季度维护怎么挂

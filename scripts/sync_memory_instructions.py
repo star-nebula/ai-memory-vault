@@ -76,6 +76,10 @@ DIR_SKIP = {
 }
 MAX_DEPTH = 3
 MIN_DEPTH = 2
+ROOT_MARKERS = (
+    "代码根", "代码位置", "代码实体", "代码仓库", "仓库本体",
+    "项目位置", "项目根", "本地路径", "位置", "路径",
+)
 
 ALLOWED_CTRL = (0x09, 0x0A, 0x0D)
 
@@ -323,22 +327,27 @@ def roots_from_overview(name):
     ov = os.path.join(MEMORY_PROJECTS, name, "_overview.md")
     if not os.path.isfile(ov):
         return None
-    t = io.open(ov, encoding="utf-8", errors="replace").read()
+    with io.open(ov, encoding="utf-8", errors="replace") as f:
+        t = f.read()
     needle = CODE_ROOT
     found = []
     i = 0
     stop = set(" \t`|，。；、）)】<>\"'\n\r*")
-    while True:
-        k = t.find(needle, i)
-        if k < 0:
-            break
-        j = k
-        while j < len(t) and t[j] not in stop:
-            j += 1
-        cand = t[k:j].rstrip("\\.* ")
-        i = j
-        if os.path.isdir(cand):
-            found.append(os.path.normpath(cand))
+    for line in t.splitlines():
+        if not any(marker in line for marker in ROOT_MARKERS):
+            continue
+        i = 0
+        while True:
+            k = line.find(needle, i)
+            if k < 0:
+                break
+            j = k
+            while j < len(line) and line[j] not in stop:
+                j += 1
+            cand = line[k:j].rstrip("\\.* ")
+            i = j
+            if os.path.isdir(cand):
+                found.append(os.path.normpath(cand))
     uniq = sorted(set(found))
     if len(uniq) != 1:
         return None
@@ -479,8 +488,7 @@ def deploy_projects(check_only):
             log("  [NOROOT] %-24s 目录名命中 %d 个" % (name, k))
     if check_only:
         log("=> 项目级钩子校验：%s" % ("全部在位一致" if problems == 0 else "有 %d 处待部署/漂移" % problems))
-        return 1 if problems else 0
-    return 0
+    return 1 if problems else 0
 
 
 def main():
