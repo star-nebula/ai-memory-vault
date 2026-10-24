@@ -219,6 +219,16 @@ class MemoryAgentContextTest(unittest.TestCase):
         self.assertTrue(result["matches"])
         self.assertLessEqual(len(result["matches"][0]["snippet"]), 430)
 
+    def test_query_reports_last_verification_date(self):
+        (self.memory / "Lessons" / "verified-path.md").write_text(
+            "---\ntype: lesson\nscope: demo\nstatus: active\n"
+            "verified_at: 2026-10-24\n---\n# 路径验证\n\n工具路径已复核。\n",
+            encoding="utf-8",
+        )
+        result = search_memory(self.memory, "工具路径已复核", project="demo")
+        match = next(m for m in result["matches"] if m["path"] == "Lessons/verified-path.md")
+        self.assertEqual(match["verified_at"], "2026-10-24")
+
     def test_query_excludes_other_project_scope(self):
         (self.memory / "Lessons" / "other-project.md").write_text(
             "---\ntype: lesson\nscope: other\nstatus: active\n---\n# 启动读取\n\n其他项目。\n",

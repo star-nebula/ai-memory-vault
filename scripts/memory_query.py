@@ -152,6 +152,7 @@ def search_memory(
             "type": typ or "note",
             "scope": scope,
             "status": status or "active",
+            "verified_at": frontmatter.get("verified_at", ""),
             "updated": frontmatter.get("updated", ""),
             "score": score,
             "snippet": _snippet(body, terms),
@@ -174,8 +175,9 @@ def _render_text(result: Dict[str, object], budget: int) -> str:
                 "",
                 "## %d. %s" % (i, match["title"]),
                 "path: %s" % match["path"],
-                "type: %s | scope: %s | status: %s | updated: %s" % (
-                    match["type"], match["scope"] or "-", match["status"], match["updated"] or "-"),
+                "type: %s | scope: %s | status: %s | updated: %s | verified: %s" % (
+                    match["type"], match["scope"] or "-", match["status"],
+                    match["updated"] or "-", match["verified_at"] or "-"),
                 "> %s" % match["snippet"],
             ])
         text = "\n".join(chunks).strip() + "\n"

@@ -1,5 +1,6 @@
 ---
 type: <取值见 rule/写入与禁止.md 第 5 条>
+status: active
 created: {{date:YYYY-MM-DD}}
 updated: {{date:YYYY-MM-DD}}
 tags: []
@@ -9,7 +10,10 @@ tags: []
 
 <!-- scope 不在这里预填：只有跨层五层（Preferences / Plans / Decisions / Lessons / Workflows）才填，
      Projects/ 内、Inbox 登记簿与 working/ 台账一律不填。判据正本 = 第 5 条，此处不复制口径。 -->
-<!-- 决策类笔记另需 frontmatter `status` 与正文「备选方案」节；规则反转 = 新建笔记指向旧笔记，不覆盖原件。 -->
+<!-- 决策类笔记把 `status` 改为 proposed / implemented / rejected-<理由> / superseded-by-[[新笔记]] / archived-YYYY-QX，
+     并补正文「备选方案」节；规则反转 = 新建笔记指向旧笔记，不覆盖原件。 -->
+<!-- 只有断言涉及路径 / 文件存在性 / 工具行为 / 环境版本时才加 `verified_at: YYYY-MM-DD`；
+     它表示该断言最后一次现场复核日期，不表示整篇笔记都已核验。 -->
 
 ## 结论 / 事实
 
