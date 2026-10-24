@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import re
 import unicodedata
+from datetime import date
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -21,6 +22,11 @@ PROJECT_NAME_RE = re.compile(r"当前项目名\s*[：:]\s*(?:`([^`]+)`|\*\*([^*\
 TRAILING_PAREN_RE = re.compile(r"\s*(?:（[^（）]*）|\([^()]*\))$")
 
 DEFAULT_BUDGET = 6000
+STATE_PLACEHOLDER_MARKERS = (
+    "P0 切换时建立",
+    "迁移预演占位",
+    "待项目会话核对",
+)
 SECTION_LIMITS = {
     "boot": 2200,
     "overview": 1800,
@@ -87,6 +93,15 @@ def read_text(path: Path) -> str:
 
 def char_len(text: str) -> int:
     return len(text)
+
+
+def parse_iso_date(value: str) -> Optional[date]:
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", (value or "").strip()):
+        return None
+    try:
+        return date.fromisoformat(value.strip())
+    except ValueError:
+        return None
 
 
 def truncate_text(text: str, limit: int, marker: str = "\n...[truncated]...\n") -> str:

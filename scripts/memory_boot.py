@@ -13,17 +13,20 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from memory_common import (
     DEFAULT_BUDGET,
+    STATE_PLACEHOLDER_MARKERS,
     SECTION_LIMITS,
     detect_project,
     extract_todo_section,
     find_memory_dir,
     read_text,
     split_frontmatter,
+    parse_iso_date,
     truncate_text,
     validate_project_name,
 )
@@ -70,11 +73,29 @@ def build_boot_pack(
     sections: List[Dict[str, object]] = [
         _section("global_hot_memory", "## Global hot memory", boot, SECTION_LIMITS["boot"])
     ]
+    state_health = {
+        "available": False,
+        "status": "",
+        "updated": "",
+        "stale": False,
+        "placeholder": False,
+    }
 
     if detected:
         project_dir = memory_dir / "Projects" / detected
         overview = split_frontmatter(_read_if_exists(project_dir / "_overview.md", files, memory_dir))[1].strip()
-        state = split_frontmatter(_read_if_exists(project_dir / "_state.md", files, memory_dir))[1].strip()
+        state_raw = _read_if_exists(project_dir / "_state.md", files, memory_dir)
+        state_frontmatter, state_body = split_frontmatter(state_raw)
+        state = state_body.strip()
+        state_updated = state_frontmatter.get("updated", "")
+        state_date = parse_iso_date(state_updated)
+        state_health = {
+            "available": bool(state_raw),
+            "status": state_frontmatter.get("status", "") or "unset",
+            "updated": state_updated,
+            "stale": bool(state_date and (date.today() - state_date).days > 30),
+            "placeholder": any(marker in state_raw for marker in STATE_PLACEHOLDER_MARKERS),
+        }
         todo_text = _read_if_exists(memory_dir / "Todo.md", files, memory_dir)
         todo = extract_todo_section(todo_text, detected) if todo_text else ""
 
@@ -87,6 +108,15 @@ def build_boot_pack(
                 sections.append(_section(name, title, raw, limit))
 
     header_lines = ["# Memory Boot Pack", "project: %s" % (detected or "(none)")]
+    if detected:
+        header_lines.append(
+            "state_health: status=%s updated=%s stale=%s placeholder=%s" % (
+                state_health["status"] or "unset",
+                state_health["updated"] or "-",
+                "yes" if state_health["stale"] else "no",
+                "yes" if state_health["placeholder"] else "no",
+            )
+        )
     if not detected:
         header_lines.append("note: no project detected; global hot memory only")
 
@@ -109,6 +139,7 @@ def build_boot_pack(
     ]
     return {
         "project": detected,
+        "state_health": state_health,
         "budget": budget,
         "budget_scope": "text",
         "chars": len(final_text),

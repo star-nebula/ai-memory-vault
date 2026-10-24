@@ -67,6 +67,25 @@ class StateAuditTest(unittest.TestCase):
         result = scan_states(self.memory, today=date(2026, 10, 24))
         self.assertEqual(result["too_large"], ["current"])
 
+    def test_strict_fails_when_no_active_projects(self):
+        empty = Path(self.temp.name) / "EmptyMemory"
+        (empty / "Projects").mkdir(parents=True)
+        env = os.environ.copy()
+        env["AI_MEMORY_DIR"] = str(empty)
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPTS / "state_audit.py"), "--strict"],
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+
+    def test_missing_updated_is_reported_and_strict_fails(self):
+        self._write_state("current", "## 当前目标\n- ship\n")
+        result = scan_states(self.memory, today=date(2026, 10, 24))
+        self.assertEqual(result["missing_updated"], ["current"])
+
     def test_cli_json_and_strict_exit(self):
         self._write_state(
             "current",

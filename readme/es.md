@@ -3,7 +3,7 @@
 [English](../README.md) | [简体中文](zh-CN.md) | [日本語](ja.md) | [한국어](ko.md) | [Español](es.md) | [Português](pt-BR.md) | [Русский](ru.md)
 
 > Una estructura de directorios + reglamento + scripts de control para que **todas las herramientas de IA** — Claude Code, Codex, Cursor, Cline, Gemini CLI, Trae, Qoder, ZCode y más — compartan **una sola memoria**.
-> **Filosofía central: casi cero configuración — no se despliega nada en local.** Todo el sistema son archivos Markdown más cuatro scripts de Python de solo librería estándar: copiarlo en un directorio Markdown plano *es* el despliegue. Sin dependencias, sin servicios, sin builds, sin placeholders que reemplazar. Las herramientas leen automáticamente el `AGENTS.md` raíz y empiezan a trabajar; los scripts detectan la ubicación de la memoria por sí solos.
+> **Filosofía central: casi cero configuración — no se despliega nada en local.** Todo el sistema son archivos Markdown más ocho scripts de Python de solo librería estándar: copiarlo en un directorio Markdown plano *es* el despliegue. Sin dependencias, sin servicios, sin builds, sin placeholders que reemplazar. Las herramientas leen automáticamente el `AGENTS.md` raíz y empiezan a trabajar; los scripts detectan la ubicación de la memoria por sí solos.
 >
 > **No depende de Obsidian**: la bóveda de memoria es simplemente un directorio Markdown plano (`Memory/`). Cualquier agente que lea/escriba archivos y cualquier editor Markdown sirven. El autor la consulta en Obsidian — Templater / Dataview son mejoras opcionales, no dependencias.
 

@@ -5,7 +5,7 @@
 ## 读取契约
 
 - **普通任务**：不默认扫描记忆库；需要用户偏好时只读 `Memory/BOOT.md`。
-- **项目任务**：运行 `python scripts/memory_boot.py --cwd .`，只加载该项目的 overview、`_state.md` 和 Todo 切片。
+- **项目任务**：运行 `python scripts/memory_boot.py --cwd .`，只加载该项目的 overview、`_state.md` 和 Todo 切片；包头的 `state_health` 只提示 state 是否过期/占位。
 - **历史 / 原因 / 排障**：运行 `python scripts/memory_query.py "关键词" --cwd .`；默认排除 archived/superseded，返回 top-k 片段。
 - **不要预读整棵记忆树**。启动只用 `memory_boot.py` 的有界包；查更多背景时用 `memory_query.py`。
 - 同一会话只加载一次启动包；除非用户要求刷新或记忆已写入，不要反复读同一文件。

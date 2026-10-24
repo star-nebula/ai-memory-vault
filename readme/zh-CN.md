@@ -3,13 +3,13 @@
 [English](../README.md) | [简体中文](zh-CN.md) | [日本語](ja.md) | [한국어](ko.md) | [Español](es.md) | [Português](pt-BR.md) | [Русский](ru.md)
 
 > 一套让 Claude Code / Codex / Cursor / Cline / Gemini CLI / Trae / Qoder / ZCode 等**所有 AI 工具共享同一份记忆**的目录结构 + 规则 + 门禁脚本。
-> **核心理念：几乎零配置成本——本地不部署任何配置。** 全部内容就是 Markdown 文件加四个仅标准库的 Python 脚本：拷进一个纯 Markdown 目录即完成"部署"，无依赖、无服务、无构建、无占位符替换；工具进入工作区自动读到根 `AGENTS.md` 即开始工作，脚本自动探测记忆库位置。
+> **核心理念：几乎零配置成本——本地不部署任何配置。** 全部内容就是 Markdown 文件加八个仅标准库的 Python 脚本：拷进一个纯 Markdown 目录即完成"部署"，无依赖、无服务、无构建、无占位符替换；工具进入工作区自动读到根 `AGENTS.md` 即开始工作，脚本自动探测记忆库位置。
 >
 > **它不绑定 Obsidian**：记忆库就是一个纯 Markdown 目录（`Memory/`），任何能读写文件的 Agent、任何 Markdown 编辑器都能用。作者本人用 Obsidian 查看记忆库——Templater / Dataview 等是可选增强，不是依赖。
 
 **为什么需要它**：每个 AI 工具都有自己的"记忆"落点——`~/.claude/`、`~/.codex/`、`.workbuddy/memory/`、各家 auto-memory……工具各记各的，换一个工具就失忆，记忆内容混在工具配置里既不可读也不可审。本方案把**记忆的唯一落点收敛到一个纯 Markdown 目录**（Markdown + wiki 链接 + 本地文件，任何工具都能读写），工具侧只留一个"指针 + 铁律短钩子"。
 
-三周多的日常实测中，这套体系沉淀出四个门禁脚本与四篇分节规则。仓库内容：
+三周多的日常实测中，这套体系沉淀出八个标准库脚本与四篇分节规则。仓库内容：
 
 | 目录 | 是什么 |
 |---|---|

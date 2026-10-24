@@ -38,7 +38,7 @@ DEFAULT_BUDGET = 5000
 SNIPPET_CHARS = 420
 SKIP_DIRS = {"__pycache__", ".git", ".obsidian", ".trash", "scripts", "Templates", "rule"}
 SKIP_FILES = {"README.md", "AGENTS.md", "Rule.md", "BOOT.md"}
-INACTIVE_STATUSES = ("archived", "superseded")
+INACTIVE_STATUSES = ("archived", "superseded", "rejected")
 
 
 def _parse_date(value: str) -> Optional[date]:
@@ -280,7 +280,7 @@ def search_memory(
             "title": title,
             "type": typ or "note",
             "scope": scope,
-            "status": status or "active",
+            "status": status or "unset",
             "verified_at": frontmatter.get("verified_at", ""),
             "updated": frontmatter.get("updated", ""),
             "date_from": bounds[0].isoformat() if bounds else "",

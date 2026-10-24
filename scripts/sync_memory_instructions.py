@@ -21,7 +21,7 @@ sync_memory_instructions.py — 记忆库自定义指令「单一真源」同步
 用法：
     python sync_memory_instructions.py                  # 部署用户级各处（幂等可重跑）
     python sync_memory_instructions.py --check          # 只读比对（各部署位 + 项目级钩子），漂移退出码 1
-    python sync_memory_instructions.py --projects       # 部署项目级钩子（只新建，不覆盖）
+    python sync_memory_instructions.py --projects       # 新建/更新带自动生成标记的钩子；手写文件 KEEP
     python sync_memory_instructions.py --projects --check   # 只报告项目级钩子状态
 
 记忆库定位：环境变量 AI_MEMORY_DIR，或从当前目录向上探测 <根>/Memory。
@@ -35,6 +35,7 @@ sync_memory_instructions.py — 记忆库自定义指令「单一真源」同步
 里「当前项目名」后面不得出现 `<项目名>`。项目名只有运行时才知道，写死占位等于给 AI 一个假值；
 合法形态 = 由 `memory_boot.py` / `memory_query.py` 在运行时判定。`Projects/<项目名>/...` 这类路径模式不受影响。
 """
+import hashlib
 import io
 import json
 import os
@@ -72,7 +73,7 @@ DIR_SKIP = {
     ".git", ".github", ".qoder", ".trae", ".trae-cn", ".agent", ".workbuddy", ".claude",
     "node_modules", "__pycache__", ".venv", "venv", "dist", "build", "out",
     "snapshots", "vendor", "docs", "doc", "packages", "scripts", "website", "ui",
-    "test", "tests", "extensions", "data", "backup", "_out", "Archive",
+    "test", "tests", "extensions", "data", "backup", "_out", "Archive", "Memory",
 }
 MAX_DEPTH = 3
 MIN_DEPTH = 2
@@ -110,9 +111,12 @@ RULE_MD = MEMORY_ROOT / "Rule.md"
 VAULT_AGENTS = MEMORY_ROOT.parent / "AGENTS.md"
 MEMORY_PROJECTS = MEMORY_ROOT / "Projects"
 BAK_DIR = MEMORY_ROOT.parent / "backup"
+SCRIPT_DIR = Path(__file__).resolve().parent
 # 声明位：会写「当前项目名」的入口文件。它们的值只能是指针，不能是尖括号伪值。
 DECL_FILES = (CANON, MANUAL, MEM_AGENTS, RULE_MD, VAULT_AGENTS)
 PSEUDO_DECL = re.compile(r"当前项目名[^\n]{0,12}<项目名>")
+GENERATED_HEADER = "# 记忆库 · 项目级入口（自动生成，勿手改）"
+GENERATED_MARKER = "<!-- generated-by: memory-vault-project-hook -->"
 
 
 def bad_ctrl(text):
@@ -137,7 +141,8 @@ def backup_file(path):
     os.makedirs(BAK_DIR, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     base = os.path.basename(path)
-    bak = os.path.join(BAK_DIR, "%s.sync-bak-%s" % (base, stamp))
+    digest = hashlib.sha1(os.path.abspath(path).encode("utf-8")).hexdigest()[:8]
+    bak = os.path.join(BAK_DIR, "%s.%s.sync-bak-%s" % (base, digest, stamp))
     shutil.copyfile(path, bak)
     return bak
 
@@ -355,7 +360,7 @@ def roots_from_overview(name):
     # 深度门：代码根自身或某个「组」目录被 overview 顺带提到时不能当代码根
     # （钩子写进 CODE_ROOT 会作用于其下全部项目）。
     rel = os.path.relpath(root, CODE_ROOT)
-    parts = [p for p in rel.split(os.sep) if p and p != "."]
+    parts = [p for p in Path(rel).parts if p and p != "."]
     if not (MIN_DEPTH <= len(parts) <= MAX_DEPTH):
         return None
     return root
@@ -387,7 +392,7 @@ def project_roots():
         if not os.path.isdir(os.path.join(MEMORY_PROJECTS, name)):
             continue
         hits = index.get(norm_name(name), [])
-        if len(hits) == 1:
+        if len(hits) == 1 and hits[0] not in out.values():
             out[name] = hits[0]
             continue
         declared = roots_from_overview(name)
@@ -399,9 +404,17 @@ def project_roots():
 
 
 def hook_text(project, body):
-    ov = os.path.join("Memory", "Projects", project)
+    memory_root = os.path.normpath(str(MEMORY_ROOT))
+    ov = os.path.join(memory_root, "Projects", project)
+    boot_script = os.path.join(str(SCRIPT_DIR), "memory_boot.py")
+    query_script = os.path.join(str(SCRIPT_DIR), "memory_query.py")
+    body = body.replace("`Memory/Rule.md`", "`%s/Rule.md`" % memory_root.replace("\\", "/"))
+    body = body.replace("`Memory\\Rule.md`", "`%s\\Rule.md`" % memory_root)
+    body = body.replace("`Memory/`", "`%s/`" % memory_root.replace("\\", "/"))
+    body = body.replace("`Memory\\`", "`%s\\`" % memory_root)
     return "\n".join([
-        "# 记忆库 · 项目级入口（自动生成，勿手改）",
+        GENERATED_HEADER,
+        GENERATED_MARKER,
         "",
         "> 由 `sync_memory_instructions.py --projects` 生成，",
         "> 正文取自真源 `Memory\\Workflows\\AI工具自定义指令.md` §二「最小版」；要改请改真源再重跑。",
@@ -413,10 +426,10 @@ def hook_text(project, body):
         "",
         "## 本项目记忆怎么读",
         "",
-        "- 启动：`python scripts/memory_boot.py --cwd .`；只加载热层、本项目 overview/state 与 Todo 切片。",
-        "- 按需查历史/原因/踩坑：`python scripts/memory_query.py \"关键词\" --project %s`。" % project,
+        "- 启动：`python \"%s\" --cwd .`；只加载热层、本项目 overview/state 与 Todo 切片。" % boot_script,
+        "- 按需查历史/原因/踩坑：`python \"%s\" \"关键词\" --project %s --cwd .`。" % (query_script, project),
         "- 不预读整棵记忆树；按上面的启动包与检索命令取最小上下文。",
-        "- 项目档案：`%s\\%s\\_overview.md`；当前状态：`_state.md`。" % (MEMORY_ROOT, ov),
+        "- 项目档案：`%s\\_overview.md`；当前状态：`%s\\_state.md`。" % (ov, ov),
         "- 跨层笔记（`Decisions\\` `Lessons\\` `Plans\\` `Preferences\\` `Workflows\\`）按 `scope` 检索，不按目录通读。",
         "- Todo 分组不存在时**别静默**：先检索 scope，再问用户是否为本项目建档。",
         "",
@@ -445,7 +458,9 @@ def deploy_projects(check_only):
         if os.path.exists(target):
             with io.open(target, encoding="utf-8", errors="replace") as f:
                 cur = f.read().strip()
-            mine = cur.startswith("# 记忆库 · 项目级入口")
+            mine = cur.startswith(GENERATED_HEADER) and (
+                GENERATED_MARKER in cur or "sync_memory_instructions.py --projects" in cur
+            )
             if not mine:
                 log("[KEEP] %-24s 已有非本脚本生成的 %s —— 按「用户手改文件绝不自动改」不覆盖"
                     % (name, HOOK_NAME))
@@ -473,8 +488,10 @@ def deploy_projects(check_only):
             log("[MISS] %-24s 未部署：%s" % (name, roots[name]))
             problems += 1
             continue
-        io.open(target, "w", encoding="utf-8", newline="").write(want)
-        recheck = io.open(target, encoding="utf-8").read()
+        with io.open(target, "w", encoding="utf-8", newline="") as f:
+            f.write(want)
+        with io.open(target, encoding="utf-8") as f:
+            recheck = f.read()
         if bad_ctrl(recheck):
             log("[FATAL] %-24s 写入后检出裸控制符，请检查写入链" % name)
             problems += 1

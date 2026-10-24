@@ -22,7 +22,7 @@ class SyncProjectHookTest(unittest.TestCase):
         self.target_dir.mkdir(parents=True)
         self.target = self.target_dir / "AGENTS.md"
         self.target.write_text(
-            "# 记忆库 · 项目级入口（自动生成，勿手改）\n\nold body\n",
+            sync.GENERATED_HEADER + "\n" + sync.GENERATED_MARKER + "\n\nold body\n",
             encoding="utf-8",
         )
         self.memory = self.root / "Memory"
@@ -52,7 +52,7 @@ class SyncProjectHookTest(unittest.TestCase):
         text = self.target.read_text(encoding="utf-8")
         self.assertIn("new body", text)
         self.assertNotIn("old body", text)
-        self.assertTrue(any((self.root / "backup").glob("AGENTS.md.sync-bak-*")))
+        self.assertTrue(any((self.root / "backup").glob("AGENTS.md.*.sync-bak-*")))
 
     def test_check_reports_drift_without_writing(self):
         before = self.target.read_text(encoding="utf-8")
@@ -64,6 +64,28 @@ class SyncProjectHookTest(unittest.TestCase):
         self.target.write_text(handwritten, encoding="utf-8")
         self.assertEqual(sync.deploy_projects(check_only=False), 0)
         self.assertEqual(self.target.read_text(encoding="utf-8"), handwritten)
+
+    def test_header_only_file_is_not_treated_as_generated(self):
+        handwritten = sync.GENERATED_HEADER + "\n\n手写内容。\n"
+        self.target.write_text(handwritten, encoding="utf-8")
+        self.assertEqual(sync.deploy_projects(check_only=False), 0)
+        self.assertEqual(self.target.read_text(encoding="utf-8"), handwritten)
+
+    def test_hook_text_uses_absolute_paths(self):
+        text = sync.hook_text("demo", "body")
+        self.assertIn(sync.GENERATED_MARKER, text)
+        self.assertIn(str(sync.SCRIPT_DIR / "memory_boot.py"), text)
+        self.assertIn(str(sync.MEMORY_ROOT / "Projects" / "demo" / "_overview.md"), text)
+        self.assertNotIn("Memory\\Memory\\", text)
+
+    def test_backup_names_include_target_hash(self):
+        other = self.target_dir / "OTHER.md"
+        other.write_text("other", encoding="utf-8")
+        first = sync.backup_file(str(self.target))
+        second = sync.backup_file(str(other))
+        self.assertNotEqual(first, second)
+        self.assertEqual(Path(first).read_text(encoding="utf-8"), self.target.read_text(encoding="utf-8"))
+        self.assertEqual(Path(second).read_text(encoding="utf-8"), "other")
 
     def test_overview_root_requires_explicit_marker(self):
         overview = self.memory / "Projects" / "demo" / "_overview.md"

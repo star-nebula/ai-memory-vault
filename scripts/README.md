@@ -21,7 +21,8 @@ python memory_boot.py --project demo --budget 6000
 - 普通任务不自动扫描记忆库；项目任务只生成一个小型启动包。
 - 输入固定：`BOOT.md` + 当前项目 `_overview.md` + `_state.md` + `Todo.md` 当前项目切片；Todo 可能被完整读取以切片，但不会整份注入。
 - 只读取显式输入；不预读整棵记忆树。
-- `--budget` 约束返回的 `text` 字段；JSON 元数据另计，不会被重复计入 text。`--json` 返回 `chars`、`source_chars`、`assembled_chars`、`truncated` 与实际读取文件列表。
+- `--budget` 约束返回的 `text` 字段；JSON 元数据另计，不会被重复计入 text。`--json` 返回 `chars`、`source_chars`、`assembled_chars`、`truncated`、`state_health` 与实际读取文件列表。
+- `state_health` 只带 `status / updated / stale / placeholder` 元数据，并在启动包头部留一行信号；它不会额外注入整张状态卡。
 
 ## `memory_query.py` —— 有界检索
 
@@ -55,7 +56,8 @@ python todo_audit.py --inbox <目录> --audit-date YYYY-MM-DD   # 积压计数 f
 
 - **词表不写在脚本里**：`type` 合法值机读自 `Memory/rule/写入与禁止.md` 第 5 条的括号清单（解析失败 = 退出码 1，不静默通过）；`scope` 合法值 = `Projects/` 实盘目录名 ∪ `global`，实盘推导
 - **阈值在脚本、数字不进文档**：`LIMIT_BOOT` / `LIMIT_OVERVIEW` / `LIMIT_STATE` / `LIMIT_BOOT_APPROX` / `LIMIT_STAGING_CHARS` 是策略常量；实测只进报告
-- **暂存层判压面只收 journal**：`working/journal.md` 与 `working/journal/*.md` 计压；`working/completed/` 属终态层，只进「最重几份」观测面，不判压
+- **暂存层判压面只收月分片**：`working/journal/YYYY-MM.md` 计压；旧 `working/journal.md` 是只读历史，不再计压；`working/completed/` 属终态层，只进「最重几份」观测面
+- **分片健康硬门禁**：`journal/*.md` 必须是 `YYYY-MM.md`，`completed/*.md` 必须是 `YYYY-QX.md` 且非空；非法命名或空分片进入 `--check`
 - **分片兼容**：completed 默认写 `working/completed/YYYY-QX.md`，旧 `working/completed.md` 继续参与核对；journal 默认写 `working/journal/YYYY-MM.md`，旧单文件继续参与报告
 - **每日 Inbox 审核积压**（报告第十节）：`Inbox/` 根下登记日期早于运行当天的文件份数；**只报不拦**，成因可能是审核任务没跑，也可能是审过但「待本人决定」把整份扣住
 - 默认报告写文件而非 stdout（Windows 控制台 GBK 吞输出的环境教训）；`-o` 可改落点
@@ -66,11 +68,11 @@ python todo_audit.py --inbox <目录> --audit-date YYYY-MM-DD   # 积压计数 f
 python state_audit.py
 python state_audit.py --json
 python state_audit.py --strict
-python state_audit.py --max-age-days 30 -o scripts/_out/state_audit.txt
+python state_audit.py --max-age-days 30 --out scripts/_out/state_audit.txt
 ```
 
-- 从 `Todo.md` 的项目分组取出活跃项目，检查每个项目的 `_state.md` 是否存在、是否为占位卡、`updated` 是否过期、正文是否超过 1000 字符。
-- **默认只报告、退出码 0**；`--strict` 在 missing / placeholder / stale / too_large 任一项存在时退出 1。
+- 从 Todo 分组与现有 `_state.md` 取项目集合，检查 state 是否存在、缺少/非法 `updated`、占位、过期或正文超过 1000 字符。
+- **默认只报告、退出码 0**；`--strict` 在 missing / missing_updated / placeholder / stale / too_large 任一项存在或没有可审计项目时退出 1。
 - 不做自动修改：活跃项目的真实状态必须由对应会话核实后写入，不能用统一模板批量伪造。
 
 ## `memory_review.py` —— 长期记忆复核队列
@@ -79,11 +81,11 @@ python state_audit.py --max-age-days 30 -o scripts/_out/state_audit.txt
 python memory_review.py
 python memory_review.py --json
 python memory_review.py --strict
-python memory_review.py --max-age-days 90 -o scripts/_out/memory_review.txt
+python memory_review.py --max-age-days 90 --out scripts/_out/memory_review.txt
 ```
 
 - 扫描 `Preferences/`、`Plans/`、`Decisions/`、`Lessons/`、`Workflows/` 的长期笔记。
-- 报告缺 `status`、`status: review`、易漂移断言缺 `verified_at`，以及 `verified_at` 超过阈值未复核。
+- 报告缺/非法 `status`、`status: review`、易漂移断言缺 `verified_at`、超过阈值未复核，以及未来日期。
 - “易漂移”只按路径、目录、工具行为、环境版本等信号识别；不把普通结论强行要求核验日期。
 - 默认只报告，`--strict` 才在任一复核项存在时退出 1；不自动改正文或伪造日期。
 
@@ -112,6 +114,7 @@ python sync_memory_instructions.py --projects   # 新建/更新脚本生成的�
 - **部署目标在脚本顶部 `TARGETS` 配置，默认全注释——clone 后直接跑不会碰你的工具位**；启用分发时解开你要的工具（支持 `~` 展开；`file` 软链退化复制 / `json-inject` 注入 JSON 键两种形态），未安装的工具自动 SKIP
 - **先 `--check` 再部署**：定位类脚本的输出面是别人的配置文件，写下去就不是本地可逆动作
 - `--projects` 的 overview 兜底只认“代码根 / 代码位置 / 位置 / 路径”等显式标记行，避免把仅被提及的仓库误当项目根；部署或校验出现内部失败时返回码 1
+- 生成钩子写入脚本与记忆库的**绝对路径**，不依赖代码项目内存在 `scripts/` 或 `Memory/`
 - 项目级钩子含真实路径 → **只留本地**，所在 git 仓用 `.git/info/exclude` 忽略（不要写 `.gitignore`——提交它就会把钩子文件名披露给远端）
 
 ## 收尾 / 季度维护怎么挂

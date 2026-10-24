@@ -3,7 +3,7 @@
 [English](../README.md) | [简体中文](zh-CN.md) | [日本語](ja.md) | [한국어](ko.md) | [Español](es.md) | [Português](pt-BR.md) | [Русский](ru.md)
 
 > Uma estrutura de diretórios + livro de regras + scripts de controle para que **todas as ferramentas de IA** — Claude Code, Codex, Cursor, Cline, Gemini CLI, Trae, Qoder, ZCode e outras — compartilhem **uma única memória**.
-> **Filosofia central: quase zero configuração — nada é implantado localmente.** O sistema inteiro são arquivos Markdown mais quatro scripts Python de biblioteca apenas padrão: copiar para um diretório Markdown puro *é* a implantação. Sem dependências, sem serviços, sem build, sem placeholders para substituir. As ferramentas leem automaticamente o `AGENTS.md` da raiz e já começam a trabalhar; os scripts detectam sozinhos onde fica a memória.
+> **Filosofia central: quase zero configuração — nada é implantado localmente.** O sistema inteiro são arquivos Markdown mais oito scripts Python de biblioteca apenas padrão: copiar para um diretório Markdown puro *é* a implantação. Sem dependências, sem serviços, sem build, sem placeholders para substituir. As ferramentas leem automaticamente o `AGENTS.md` da raiz e já começam a trabalhar; os scripts detectam sozinhos onde fica a memória.
 >
 > **Não depende do Obsidian**: o cofre de memória é apenas um diretório Markdown puro (`Memory/`). Qualquer agente que leia/escreva arquivos e qualquer editor Markdown funcionam. O autor o consulta no Obsidian — Templater / Dataview são aprimoramentos opcionais, não dependências.
 
@@ -13,7 +13,7 @@
 |---|---|
 | [docs/](../docs/) | **Fundamentos do projeto**: por que foi construído assim, os incidentes reais por trás de cada controle (chinês) |
 | [starter/](../starter/) | **Esqueleto copiar-e-usar**: estrutura + livro de regras completo + projeto de exemplo |
-| [scripts/](../scripts/) | **Scripts de controle**: índices, auditoria de tarefas, guarda de codificação, sincronização de instruções |
+| [scripts/](../scripts/) | **Comandos e gates do agente**: pacote de inicialização, busca limitada, auditoria de tarefas, estado/ciclo de vida, codificação, sincronização de instruções |
 
 ## Princípios centrais (resumo dos sete)
 

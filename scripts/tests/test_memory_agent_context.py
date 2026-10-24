@@ -46,7 +46,8 @@ class MemoryAgentContextTest(unittest.TestCase):
             encoding="utf-8",
         )
         (self.project / "_state.md").write_text(
-            "---\ntype: project-fact\n---\n# State\n\nCurrent goal: validate P0.\n",
+            "---\ntype: project-fact\nstatus: active\nupdated: 2026-10-23\n---\n"
+            "# State\n\nCurrent goal: validate P0.\n",
             encoding="utf-8",
         )
         (self.other / "_overview.md").write_text(
@@ -133,8 +134,21 @@ class MemoryAgentContextTest(unittest.TestCase):
         self.assertNotIn("type: project-fact", text)
         self.assertLessEqual(pack["chars"], 6000)
         self.assertIn("BOOT.md", pack["files"])
+        self.assertEqual(pack["state_health"]["status"], "active")
+        self.assertEqual(pack["state_health"]["updated"], "2026-10-23")
+        self.assertFalse(pack["state_health"]["placeholder"])
         read_names = {call.args[0].name for call in read_mock.call_args_list}
         self.assertEqual(read_names, {"BOOT.md", "_overview.md", "_state.md", "Todo.md"})
+
+    def test_boot_pack_signals_placeholder_state(self):
+        (self.project / "_state.md").write_text(
+            "---\ntype: project-fact\nstatus: active\nupdated: 2026-10-23\n---\n"
+            "# State\n\nP0 切换时建立；待项目会话核对。\n",
+            encoding="utf-8",
+        )
+        pack = build_boot_pack(self.memory, project="demo", budget=6000)
+        self.assertTrue(pack["state_health"]["placeholder"])
+        self.assertIn("placeholder=yes", pack["text"])
 
     def test_boot_truncation_fields_are_separate(self):
         (self.project / "_overview.md").write_text("A" * 5000, encoding="utf-8")
@@ -194,6 +208,33 @@ class MemoryAgentContextTest(unittest.TestCase):
         result = search_memory(self.memory, "启动读取", project="demo", include_inactive=True)
         paths = [m["path"] for m in result["matches"]]
         self.assertIn("Decisions/old-memory.md", paths)
+
+    def test_query_treats_rejected_as_inactive(self):
+        (self.memory / "Decisions" / "rejected.md").write_text(
+            "---\ntype: decision\nscope: demo\nstatus: rejected-no\n---\n"
+            "# 拒绝路径\n\n不再采用。\n",
+            encoding="utf-8",
+        )
+        default = search_memory(self.memory, "拒绝路径", project="demo")
+        included = search_memory(
+            self.memory,
+            "拒绝路径",
+            project="demo",
+            include_inactive=True,
+        )
+        self.assertEqual(default["matches"], [])
+        self.assertIn(
+            "Decisions/rejected.md",
+            {match["path"] for match in included["matches"]},
+        )
+
+    def test_query_reports_missing_status_as_unset(self):
+        (self.memory / "Lessons" / "no-status.md").write_text(
+            "---\ntype: lesson\nscope: demo\n---\n# 无状态命中\n\n旧笔记。\n",
+            encoding="utf-8",
+        )
+        result = search_memory(self.memory, "无状态命中", project="demo")
+        self.assertEqual(result["matches"][0]["status"], "unset")
 
     def test_query_history_can_reach_sharded_journal(self):
         working = self.project / "working" / "journal"

@@ -140,6 +140,8 @@ WORKING_COMPLETED_GLOBS = (
     "*/working/completed.md",
     "*/working/completed/*.md",
 )
+JOURNAL_SHARD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])\.md$")
+COMPLETED_SHARD_RE = re.compile(r"^\d{4}-Q[1-4]\.md$")
 
 
 def _working_files() -> list[Path]:
@@ -156,7 +158,27 @@ def _working_project(path: Path) -> str:
 
 
 def _working_kind(path: Path) -> str:
-    return "completed" if path.name == "completed.md" or path.parent.name == "completed" else "journal"
+    if path.name == "journal.md":
+        return "legacy-journal"
+    if path.name == "completed.md":
+        return "legacy-completed"
+    return "completed" if path.parent.name == "completed" else "journal"
+
+
+def scan_shard_health() -> dict:
+    invalid, empty = [], []
+    if PROJECTS_DIR.is_dir():
+        for kind, pattern, regex in (
+            ("journal", "*/working/journal/*.md", JOURNAL_SHARD_RE),
+            ("completed", "*/working/completed/*.md", COMPLETED_SHARD_RE),
+        ):
+            for path in sorted(PROJECTS_DIR.glob(pattern)):
+                rel = path.relative_to(PROJECTS_DIR).as_posix()
+                if not regex.fullmatch(path.name):
+                    invalid.append({"kind": kind, "file": rel, "reason": "bad-name"})
+                elif not read_text(path).strip():
+                    empty.append({"kind": kind, "file": rel, "reason": "empty"})
+    return {"invalid": invalid, "empty": empty}
 
 
 def char_len(path: Path) -> int:
@@ -456,7 +478,13 @@ def project_dirs() -> dict[str, Path]:
 
 def has_completed(dirname_path: Path) -> bool:
     working = dirname_path / "working"
-    return (working / "completed.md").is_file() or any((working / "completed").glob("*.md"))
+    if (working / "completed.md").is_file():
+        return True
+    return any(
+        COMPLETED_SHARD_RE.fullmatch(path.name) and read_text(path).strip()
+        for path in (working / "completed").glob("*.md")
+        if path.is_file()
+    )
 
 
 # —— journal/plan 里「已并入 Todo」这类声明的核对（2026-09-30 增）——
@@ -791,6 +819,17 @@ def render(r: dict) -> str:
                    "行数口径可能永不触发；行数在本段只作阅读参考列。")
         out.append("> **只报告不拦**：蒸馏是渐进动作，把存量债当门禁会让每次收尾恒红。"
                    "口径正本见 `rule/写入与禁止.md` 第 3 条；该行只指路，不抄阈值与份数。")
+    shards = r.get("shards") or {}
+    out.append("")
+    out.append("### 分片健康（硬门禁）")
+    out.append("")
+    if not shards:
+        out.append("（未采集）")
+    elif not shards.get("invalid") and not shards.get("empty"):
+        out.append("journal/completed 分片命名合法且非空。")
+    else:
+        for item in (shards.get("invalid") or []) + (shards.get("empty") or []):
+            out.append(f"- `{item['file']}`：{item['reason']}")
     tv = r.get("type_vocab") or {}
     out.append("")
     out.append("## 九、frontmatter `type` 词表（取值清单机读自规则正本第 5 条，脚本内不写死）")
@@ -864,6 +903,7 @@ def main() -> int:
     result = scan_todo(todo)
     result["claims"] = scan_todo_claims(todo)
     result["staging"] = scan_staging_volume()
+    result["shards"] = scan_shard_health()
     run_date = date.today()
     if args.audit_date:
         try:
@@ -879,8 +919,13 @@ def main() -> int:
               file=sys.stderr)
         return 1
     type_violations = len(tv["bad"])
+    shard_violations = (
+        len(result["shards"]["invalid"])
+        + len(result["shards"]["empty"])
+    )
     violations = (len(result["signals"]) + len(result["unmapped_groups"])
-                  + len(result["claims"]["broken"]) + type_violations)
+                  + len(result["claims"]["broken"]) + type_violations
+                  + shard_violations)
     cost = result.get("cost") or {}
     scope = result.get("scope") or {}
     claims = result["claims"]
@@ -911,6 +956,7 @@ def main() -> int:
         f"Agent 启动硬门禁 {cost_violations} 项 / 内容债 {content_violations} 项 / scope 违规 {scope_violations} 处 / "
         f"Todo 假声明 {claim_violations} 处（另 {claim_notes} 条旧声明无法核对） / "
         f"暂存层待压缩（判压面=journal） {len((result['staging'] or {}).get('over') or [])} 份 / "
+        f"分片命名/空文件违规 {shard_violations} 处 / "
         f"type 词表违规 {type_violations} 处（另 {len(tv['missing'])} 篇缺 type） / "
         f"待结积压 {len(backlog)} 份（只报不拦）"
     )
@@ -932,14 +978,19 @@ def main() -> int:
             print(f"  type 词表外取值: {b['file']} -> {b['value']}")
         for x in backlog[:20]:
             print(f"  待结积压: Inbox/{x['name']}（登记日 {x['date']}，滞留 {x['days']} 天）")
+        for item in result["shards"]["invalid"] + result["shards"]["empty"]:
+            print(f"  分片违规: {item['file']} ({item['reason']})")
         print(f"报告: {out}")
 
     if args.check and violations:
+        if shard_violations:
+            print(f"[!] {shard_violations} 个 journal/completed 分片命名非法或为空 —— "
+                  f"journal/YYYY-MM.md 与 completed/YYYY-QX.md 必须有内容", file=sys.stderr)
         if claims["broken"]:
             for b in claims["broken"]:
                 print(f"[!] {b['file']}:{b['line']} 「{b['title']}」查无此条 —— "
                       f"要么把它真写进 Todo，要么删改这句声明", file=sys.stderr)
-        if violations - claim_violations:
+        if violations - claim_violations - shard_violations:
             print(f"[!] 有 {violations} 处违规 —— 完成 = 移走（追加到 working/completed/YYYY-QX.md 并从 Todo 删除该条）", file=sys.stderr)
         return 1
 

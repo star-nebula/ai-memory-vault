@@ -29,7 +29,7 @@ python scripts/encoding_guard.py Memory --no-ctrl     # 编码检查
 
 ## 示例项目
 
-`Memory/Projects/示例项目/` 是占位项目，演示 `_overview.md` + `_state.md` + `working/{journal,completed}.md` 与 `Todo.md` 分组的对应关系。改名为你的第一个真实项目即可（改名后同步改 `Todo.md` 的 `## 分组` 标题——分组名必须等于项目目录名，门禁会查）。
+`Memory/Projects/示例项目/` 是占位项目，演示 `_overview.md` + `_state.md` + `working/journal/YYYY-MM.md` + `working/completed/YYYY-QX.md` 与 `Todo.md` 分组的对应关系。改名为你的第一个真实项目即可（改名后同步改 `Todo.md` 的 `## 分组` 标题——分组名必须等于项目目录名，门禁会查）。
 
 ## 安全提示
 

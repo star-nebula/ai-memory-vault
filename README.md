@@ -49,7 +49,7 @@ your-vault/                   ← your notes repo / workspace root (a plain Mark
     ├── rule/                 ← four rule sections (write / wrap-up / sub-agents / vibe-coding)
     ├── Todo.md               ← global todos, grouped by project (no checkboxes)
     ├── Preferences/ Plans/ Decisions/ Lessons/ Workflows/
-    ├── Projects/<name>/      ← _overview.md + _state.md + working/{journal,plan,completed}.md
+    ├── Projects/<name>/      ← _overview.md + _state.md + working/journal/YYYY-MM.md + plan.md + completed/YYYY-QX.md
     ├── Inbox/                ← write ledger: every AI write gets logged, then reviewed
     └── Archive/              ← quarterly archive
 ```

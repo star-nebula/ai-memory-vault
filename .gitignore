@@ -7,6 +7,8 @@ scripts/_out/
 *_out/
 
 # 备份与临时文件
+backup/
+*.sync-bak-*
 *.bak
 *.tmp
 _tmp*

@@ -79,6 +79,47 @@ class MemoryReviewTest(unittest.TestCase):
         result = scan_memory_review(self.memory, today=date(2026, 10, 24))
         self.assertEqual(result["counts"]["volatile_unverified"], 0)
 
+    def test_urls_are_not_volatile_but_paths_are(self):
+        self._write(
+            "Lessons/url.md",
+            "---\ntype: lesson\nscope: global\nstatus: active\n---\n"
+            "# 链接\n\n参考 https://github.com/example/project。\n",
+        )
+        self._write(
+            "Lessons/relative.md",
+            "---\ntype: lesson\nscope: global\nstatus: active\n---\n"
+            "# 相对路径\n\n运行 `scripts/memory_boot.py`。\n",
+        )
+        self._write(
+            "Lessons/posix.md",
+            "---\ntype: lesson\nscope: global\nstatus: active\n---\n"
+            "# POSIX 路径\n\n读取 `/usr/local/bin/tool`。\n",
+        )
+        result = scan_memory_review(self.memory, today=date(2026, 10, 24))
+        volatile = {
+            issue["path"]
+            for issue in result["issues"]
+            if issue["code"] == "volatile_unverified"
+        }
+        self.assertNotIn("Lessons/url.md", volatile)
+        self.assertIn("Lessons/relative.md", volatile)
+        self.assertIn("Lessons/posix.md", volatile)
+
+    def test_invalid_and_future_statuses_are_reported(self):
+        self._write(
+            "Lessons/invalid.md",
+            "---\ntype: lesson\nscope: global\nstatus: activ\n---\n"
+            "# 拼写错误\n\n普通内容。\n",
+        )
+        self._write(
+            "Lessons/future.md",
+            "---\ntype: lesson\nscope: global\nstatus: active\n"
+            "verified_at: 2099-01-01\n---\n# 未来核验\n\n工具路径 `E:\\Tools\\x.exe`。\n",
+        )
+        result = scan_memory_review(self.memory, today=date(2026, 10, 24))
+        self.assertEqual(result["counts"]["invalid_status"], 1)
+        self.assertEqual(result["counts"]["volatile_future"], 1)
+
     def test_structural_file_without_frontmatter_is_exempt(self):
         self._write(
             "Workflows/instructions.md",

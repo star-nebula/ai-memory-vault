@@ -10,43 +10,41 @@ import argparse
 import json
 import re
 import sys
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from memory_common import find_memory_dir, normalize_group_title, read_text
-
-
-PLACEHOLDER_MARKERS = (
-    "P0 切换时建立",
-    "迁移预演占位",
-    "待项目会话核对",
+from memory_common import (
+    STATE_PLACEHOLDER_MARKERS,
+    find_memory_dir,
+    normalize_group_title,
+    parse_iso_date,
+    read_text,
 )
 
 
 def _active_projects(memory_dir: Path) -> List[str]:
     todo = memory_dir / "Todo.md"
     projects = memory_dir / "Projects"
-    if not todo.is_file() or not projects.is_dir():
+    if not projects.is_dir():
         return []
     names: List[str] = []
-    for line in read_text(todo).splitlines():
-        if not line.startswith("## "):
-            continue
-        name = normalize_group_title(line)
-        if name and (projects / name).is_dir() and name not in names:
-            names.append(name)
+    if todo.is_file():
+        for line in read_text(todo).splitlines():
+            if not line.startswith("## "):
+                continue
+            name = normalize_group_title(line)
+            if name and (projects / name).is_dir() and name not in names:
+                names.append(name)
+    for project in sorted(projects.iterdir()):
+        if project.is_dir() and (project / "_state.md").is_file() and project.name not in names:
+            names.append(project.name)
     return names
 
 
 def _updated_date(text: str) -> Optional[date]:
     match = re.search(r"^updated:\s*(\d{4}-\d{2}-\d{2})\s*$", text, re.M)
-    if not match:
-        return None
-    try:
-        return datetime.strptime(match.group(1), "%Y-%m-%d").date()
-    except ValueError:
-        return None
+    return parse_iso_date(match.group(1)) if match else None
 
 
 def scan_states(
@@ -64,14 +62,16 @@ def scan_states(
             row["chars"] = len(text)
             updated = _updated_date(text)
             row["updated"] = updated.isoformat() if updated else ""
-            row["placeholder"] = any(marker in text for marker in PLACEHOLDER_MARKERS)
+            row["placeholder"] = any(marker in text for marker in STATE_PLACEHOLDER_MARKERS)
             row["stale"] = bool(updated and (today - updated).days > max_age_days)
+            row["missing_updated"] = updated is None
             row["too_large"] = len(text) > 1000
         else:
             row["chars"] = 0
             row["updated"] = ""
             row["placeholder"] = False
             row["stale"] = False
+            row["missing_updated"] = False
             row["too_large"] = False
         rows.append(row)
     return {
@@ -79,6 +79,7 @@ def scan_states(
         "missing": [r["project"] for r in rows if not r["exists"]],
         "placeholder": [r["project"] for r in rows if r["placeholder"]],
         "stale": [r["project"] for r in rows if r["stale"]],
+        "missing_updated": [r["project"] for r in rows if r["missing_updated"]],
         "too_large": [r["project"] for r in rows if r["too_large"]],
         "rows": rows,
     }
@@ -92,17 +93,19 @@ def render(result: Dict[str, object], max_age_days: int) -> str:
         f"- missing _state.md: {len(result['missing'])}",
         f"- placeholder state: {len(result['placeholder'])}",
         f"- stale (> {max_age_days} days): {len(result['stale'])}",
+        f"- missing/invalid updated: {len(result['missing_updated'])}",
         f"- too large (> 1000 chars): {len(result['too_large'])}",
         "",
-        "| project | exists | chars | updated | placeholder | stale |",
-        "|---|---:|---:|---|---:|---:|",
+        "| project | exists | chars | updated | placeholder | stale | too large |",
+        "|---|---:|---:|---|---:|---:|---:|",
     ]
     for row in result["rows"]:
         lines.append(
-            "| %s | %s | %s | %s | %s | %s |" % (
+            "| %s | %s | %s | %s | %s | %s | %s |" % (
                 row["project"], "yes" if row["exists"] else "no", row["chars"],
                 row["updated"] or "-", "yes" if row["placeholder"] else "no",
                 "yes" if row["stale"] else "no",
+                "yes" if row["too_large"] else "no",
             )
         )
     return "\n".join(lines) + "\n"
@@ -114,7 +117,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--max-age-days", type=int, default=30)
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--out", help="write report to a file")
-    parser.add_argument("--strict", action="store_true", help="exit 1 if any missing/placeholder/stale state exists")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit 1 on empty coverage or any missing/missing-updated/placeholder/stale/oversized state",
+    )
     args = parser.parse_args(argv)
 
     memory_dir = find_memory_dir(args.memory_dir)
@@ -131,9 +138,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     else:
         print(text, end="")
     if args.strict and (
-        result["missing"]
+        result["scanned"] == 0
+        or result["missing"]
         or result["placeholder"]
         or result["stale"]
+        or result["missing_updated"]
         or result["too_large"]
     ):
         return 1
