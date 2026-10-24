@@ -1,5 +1,6 @@
 ---
 type: project-fact
+status: active
 created: 2026-10-24
 updated: 2026-10-24
 tags: [live-diagram, 当前状态]
