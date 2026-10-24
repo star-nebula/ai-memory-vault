@@ -7,7 +7,7 @@
 - 普通问答 / 单轮任务：不默认扫描记忆库；需要用户偏好时只读 `Memory/BOOT.md`。
 - 项目任务：运行 `python scripts/memory_boot.py --cwd .`。它只返回全局热记忆、当前项目 `_overview.md`、`_state.md` 与 Todo 切片。
 - 查原因 / 历史 / 踩坑：运行 `python scripts/memory_query.py "关键词" --cwd .`；默认返回 top-k 片段，排除 archived/superseded。
-- 不要在启动时读 `Memory/_index.md` 或各层 `_index.md`；它们是生成/校验用目录。
+- 不要预读整棵记忆树；启动只取上面的有界包，更多背景按需检索。
 - 同一会话只加载一次启动包；除非用户要求刷新或记忆已写入，不要反复读取同一文件。
 
 ## 写入
@@ -25,5 +25,5 @@
 ## 派发子代理
 
 - 记忆库位于工作区根 `Memory/`；写前按 `Memory/Rule.md` 的映射读对应分节。
-- 第一动作：按任务运行 `memory_boot.py` 或 `memory_query.py`，不要通读 `_index.md`。
+- 第一动作：按任务运行 `memory_boot.py` 或 `memory_query.py`，不要预读整棵记忆树。
 - 完成重要工作后回传「是否需落记忆库」；只读子代理须列出待落库条目，由父会话代写。

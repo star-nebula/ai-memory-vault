@@ -37,7 +37,7 @@ DEFAULT_LIMIT = 5
 DEFAULT_BUDGET = 5000
 SNIPPET_CHARS = 420
 SKIP_DIRS = {"__pycache__", ".git", ".obsidian", ".trash", "scripts", "Templates", "rule"}
-SKIP_FILES = {"_index.md", "README.md", "AGENTS.md", "Rule.md", "BOOT.md"}
+SKIP_FILES = {"README.md", "AGENTS.md", "Rule.md", "BOOT.md"}
 INACTIVE_STATUSES = ("archived", "superseded")
 
 

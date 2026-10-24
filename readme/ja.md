@@ -20,7 +20,7 @@
 1. **ほぼゼロ設定** — Markdown ファイル + 標準ライブラリのみのスクリプト。ディレクトリにコピーすることがインストールの全部。
 2. **記憶の置き場所は一つ** — ツール側設定には「ポインタ + 短いフック」のみ。記憶の中身は書かない。
 3. **構造化された階層** — `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects` ＋ `Todo.md`・`Inbox/`・`Archive/`。
-4. **インデックスは派生物** — `Decisions/` を除く各内容層を `mem_index.py` が生成。人は一行紹介を磨くだけで、再生成しても消えない。`Decisions/_index.md` は 1 行が複数決定を覆えるため手管理。
+4. **既定は最小コンテキスト** — Agent は記憶ツリー全体を閲覧しない。`memory_boot.py` は有界の起動パックを生成し、`memory_query.py` は必要なときだけ順位付き断片を返す。
 5. **クローズ = 移動** — 完了・中止した ToDo は `working/completed.md` へ（日付・結果・理由・出所付きで）移し、Todo から削除。その場で ✅ や恒久的な取り消し線を残さない。
 6. **ゲートのある工程だけ劣化しない** — 全ゲートには実事故の背書があります（[docs/04](../docs/04-演化史-门禁背后的事故.md)）。
 7. **プライバシーはガードで守る** — `.gitignore` ＋ `pre-commit` フックが `Memory/` 触りのコミットを拒否。
@@ -34,8 +34,8 @@ https://github.com/star-nebula/ai-memory-vault をクローン（できなけれ
 starter/ の中身をすべて私の記憶ライブラリのワークスペースルートにコピーしてください——
 既にノートライブラリがあればそのルートへ、なければ空ディレクトリを新規作成。
 あわせて scripts/ ディレクトリもそのワークスペースにコピーしてください（ゲートは starter/ の中にありません）。
-その後、そのディレクトリで python scripts/mem_index.py --write を実行してインデックスを生成。
-最後に、ワークスペースルートの AGENTS.md と Memory/_index.md を読み、
+その後 python scripts/memory_boot.py --cwd . --json と python scripts/memory_query.py "test" --json を実行。
+最後にワークスペースルートの AGENTS.md を読み、
 「いつ記憶を読み、どう書くか」を私に復唱してください。
 ```
 
@@ -48,8 +48,6 @@ cp -r starter/* scripts /path/to/your-vault/   # 唯一の「インストール�
 置換すべきプレースホルダも、インストールすべき依存もありません。任意の後続ステップ：
 
 ```bash
-python scripts/mem_index.py --write      # 各層インデックスを生成
-python scripts/mem_index.py --check      # インデックス漂移ゲート
 python scripts/todo_audit.py --check     # ToDo アーカイブゲート
 python scripts/encoding_guard.py <path>  # エンコーディング + 制御文字ゲート
 ```
@@ -60,7 +58,8 @@ python scripts/encoding_guard.py <path>  # エンコーディング + 制御文�
 
 | スクリプト | 拦むもの |
 |---|---|
-| `mem_index.py` | 手管理インデックスの漂移・索引セルの陳腐化・単一正本の曖昧性解消表/ポインタの破損・判断アンカーの不整合・読時鮮度プロトコルの欠落 |
+| `memory_boot.py` | 起動コンテキストの無制限化・section の暗黙切り捨て・プロジェクト文脈の欠落 |
+| `memory_query.py` | ノート全体の展開・project/scope の漏洩・archived/superseded の既定混入 |
 | `todo_audit.py` | 完了済みだが未移動の残骸・グループ名とプロジェクト dir の不一致・「Todo に移した」虚偽申告・語彙外 type・Inbox 監査の滞留（報告のみ） |
 | `encoding_guard.py` | 非 UTF-8 / BOM・AI のエスケープ食いによる裸制御文字（grep から見えなくなる地雷） |
 | `sync_memory_instructions.py` | ツール指令位と単一真源の漂移・真源の制御文字汚染・`<项目名>` 疑似値 |

@@ -7,7 +7,7 @@
 按序取：
 
 1. 环境变量 `AI_MEMORY_DIR`（直接指向 `Memory/` 目录）
-2. 从当前目录 / 脚本位置**向上探测**名为 `Memory` 且含 `Todo.md` / `_index.md` / `rule/` 之一的目录
+2. 从当前目录 / 脚本位置**向上探测**名为 `Memory` 且含 `BOOT.md` / `Todo.md` / `rule/` 之一的目录
 
 把脚本放在 vault 根或其子目录运行即可自动命中；也可以显式 `export AI_MEMORY_DIR=...` 后在任何位置运行。
 
@@ -20,7 +20,7 @@ python memory_boot.py --project demo --budget 6000
 
 - 普通任务不自动扫描记忆库；项目任务只生成一个小型启动包。
 - 输入固定：`BOOT.md` + 当前项目 `_overview.md` + `_state.md` + `Todo.md` 当前项目切片；Todo 可能被完整读取以切片，但不会整份注入。
-- 不读取 `_index.md` 或各层 `_index.md`。
+- 只读取显式输入；不预读整棵记忆树。
 - `--budget` 约束返回的 `text` 字段；JSON 元数据另计，不会被重复计入 text。`--json` 返回 `chars`、`source_chars`、`assembled_chars`、`truncated` 与实际读取文件列表。
 
 ## `memory_query.py` —— 有界检索
@@ -36,23 +36,6 @@ python memory_query.py "关键词" --all-projects --json
 - 指定项目时，`Projects/<项目>` 之外的项目树不会进入结果；跨层笔记必须 `scope` 为该项目的名称或 `global`。
 - 默认跳过 `Inbox/`、`Archive/`、`working/`；查历史时加 `--include-history`。
 - `text` 返回路径、类型、scope、status、更新日期和片段，不展开整篇笔记；`--json` 的 `matches` 只放元数据，避免重复正文。
-## `mem_index.py` —— 索引生成 / 校验（门禁 ①⑤）
-
-**除 `Decisions/` 外**各层 `_index.md` 的**派生器 + 门禁**。背景：手工索引必然漂移，索引必须是派生物；`Decisions/_index.md` 专用格式、人工维护，只可 `--check`。
-
-```bash
-python mem_index.py --write          # 生成/更新（幂等；新增自动补行，人工润色的「一句话」保留）
-python mem_index.py --check          # 门禁：缺行/失效行/更新列滞旧/地图页漏列/消歧单源/决策锚点/读时时效失明 → 退出码 1
-python mem_index.py --write --layer Lessons   # 只处理某层
-python mem_index.py --write --refresh-cells   # 强制按实盘重算人工定位/关键词（默认保留）
-```
-
-- 覆盖层：`Preferences` `Plans` `Lessons` `Workflows` `Projects`（**`Decisions` 除外**——其 `_index.md` 是专用格式，手工维护，只可 `--check`）
-- **门禁 ⑤**：同名消歧**单一正本**——完整五组表只允许在工作区根 `AGENTS.md` §同名文件消歧；`Memory/_index.md` §六 只留指针。校验正本表结构（五组、三列、无重复）与指针路径/节名；标题、表格、指针只认真 Markdown 内容（塞进代码围栏或 HTML 注释等于不存在）
-- **决策锚点守恒**：`Decisions/_index.md` 不是生成物；机器只查每张决策卡都有一行带 `[[Decisions/文件名]]`、每个锚点都指向真实文件
-- **索引「更新」列滞旧**：`--check` 比行名与「更新」列；滞旧行附 mtime 归因，跑 `--write` 刷新。**「一句话定位 / 关键词」是人工润色值，`--write` 不覆盖已有人工行**——改笔记摘要/标签不会自动刷新这两格，需人工同步；要强制按实盘重算两格用 `--write --refresh-cells`。
-- **读时时效门**：校验 `Memory/_index.md` 的「读时时效」小节在场、判据指针（默认指向 `Lessons/批量改写脚本的自检失明.md`，可在脚本顶部 `READTIME_POINTER` 常量改）未被抽走——改名/删除即报红
-
 ## `todo_audit.py` —— 待办归档体检（门禁 ②④ + 报告项）
 
 把「**完成 = 移走**」变成可校验项。
@@ -67,7 +50,7 @@ python todo_audit.py --inbox <目录> --audit-date YYYY-MM-DD   # 积压计数 f
 ```
 
 - **词表不写在脚本里**：`type` 合法值机读自 `Memory/rule/写入与禁止.md` 第 5 条的括号清单（解析失败 = 退出码 1，不静默通过）；`scope` 合法值 = `Projects/` 实盘目录名 ∪ `global`，实盘推导
-- **阈值在脚本、数字不进文档**：`LIMIT_BOOT` / `LIMIT_INDEX` / `LIMIT_OVERVIEW` / `LIMIT_STATE` / `LIMIT_BOOT_APPROX` / `LIMIT_STAGING_CHARS` 是策略常量；实测只进报告
+- **阈值在脚本、数字不进文档**：`LIMIT_BOOT` / `LIMIT_OVERVIEW` / `LIMIT_STATE` / `LIMIT_BOOT_APPROX` / `LIMIT_STAGING_CHARS` 是策略常量；实测只进报告
 - **暂存层判压面只收 `journal.md`**：`working/completed.md` 属终态层，只进「最重几份」观测面，不判压
 - **每日 Inbox 审核积压**（报告第十节）：`Inbox/` 根下登记日期早于运行当天的文件份数；**只报不拦**，成因可能是审核任务没跑，也可能是审过但「待本人决定」把整份扣住
 - 默认报告写文件而非 stdout（Windows 控制台 GBK 吞输出的环境教训）；`-o` 可改落点
@@ -100,4 +83,4 @@ python sync_memory_instructions.py --projects   # 部署项目级钩子（只新
 
 ## 收尾 / 季度维护怎么挂
 
-见 `../starter/Memory/rule/收尾与维护.md`：每次会话收尾跑 `mem_index.py --check` + `todo_audit.py --check` + `sync_memory_instructions.py --check`；季度再加 `--cost-check` / `--content-check` / `--scope-check` / `encoding_guard.py`。
+见 `../starter/Memory/rule/收尾与维护.md`：每次会话收尾跑 `todo_audit.py --check` + `sync_memory_instructions.py --check`，并对记忆库跑 `encoding_guard.py`；结构变化时加 `--cost-check` / `--content-check`，季度再加 `--scope-check`。

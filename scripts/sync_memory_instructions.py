@@ -92,7 +92,7 @@ def _find_memory_dir() -> Path:
         for p in [start, *start.parents]:
             cand = p / "Memory"
             if cand.is_dir() and any(
-                (cand / marker).exists() for marker in ("Todo.md", "_index.md", "rule")
+                (cand / marker).exists() for marker in ("BOOT.md", "Todo.md", "rule")
             ):
                 return cand
     return Path.cwd() / "Memory"
@@ -406,7 +406,7 @@ def hook_text(project, body):
         "",
         "- 启动：`python scripts/memory_boot.py --cwd .`；只加载热层、本项目 overview/state 与 Todo 切片。",
         "- 按需查历史/原因/踩坑：`python scripts/memory_query.py \"关键词\" --project %s`。" % project,
-        "- 不读 `_index.md` 或各层 `_index.md`；它们是校验用派生物。",
+        "- 不预读整棵记忆树；按上面的启动包与检索命令取最小上下文。",
         "- 项目档案：`%s\\%s\\_overview.md`；当前状态：`_state.md`。" % (MEMORY_ROOT, ov),
         "- 跨层笔记（`Decisions\\` `Lessons\\` `Plans\\` `Preferences\\` `Workflows\\`）按 `scope` 检索，不按目录通读。",
         "- Todo 分组不存在时**别静默**：先检索 scope，再问用户是否为本项目建档。",

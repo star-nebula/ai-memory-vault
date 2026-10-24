@@ -2,7 +2,7 @@
 __pycache__/
 *.pyc
 
-# 脚本报告输出目录（todo_audit / mem_index 等的实测报告）
+# 脚本报告输出目录（todo_audit / state_audit 等的实测报告）
 scripts/_out/
 *_out/
 

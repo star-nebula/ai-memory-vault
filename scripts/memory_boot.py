@@ -4,7 +4,7 @@
 Contract:
 - BOOT.md is the only always-on hot-memory file.
 - If a project is detected, add its overview, current state, and Todo slice.
-- Never read _index.md or layer indexes during boot.
+- Only read the explicit boot inputs; never preload the memory tree.
 - --budget limits the returned ``text`` field, not JSON diagnostics.
 """
 
@@ -95,7 +95,7 @@ def build_boot_pack(
         chunks.append(str(section["title"]))
         chunks.append(str(section["content"]))
 
-    footer = "Use memory_query.py for deeper lookup; memory indexes are retired."
+    footer = "Use memory_query.py for deeper lookup; do not preload whole notes."
     chunks.append("## Retrieval")
     chunks.append(footer)
     full_text = "\n\n".join(chunks).strip() + "\n"

@@ -5,7 +5,7 @@
     「待办 → `Memory/Todo.md`；完成 → `Projects/<项目名>/working/completed.md`」
     这条链路原本只写在会话收尾 checklist 里，**没有任何门禁**，于是静默积累
     「已标完成却未移走」的条目（实测 4 条，含一条 2000 字符的重复复盘）。
-    对比：索引漂移有 `mem_index.py --check`、断链有 `link_audit.py`，唯独待办归档没有。
+    对比：断链有 `link_audit.py`，唯独待办归档没有。
     本脚本把「归档动作」变成可校验项。
 
 检查清单（**计数不在此维护**，以本文件的 `scan_*` 函数为准——写死「N 件事」就是第二份事实源，加一项就漂）：
@@ -29,7 +29,7 @@
                      判据正本 = `Workflows/记忆库自动审核与人工入口.md`「审核范围」段；**只报不拦**。
 
 **为什么体量阈值写在脚本、不写进文档**：
-    Agent-first 启动不再把 `_index.md` 与整份 Todo 注入上下文，而是由 `memory_boot.py`
+    Agent-first 启动不再预读整棵记忆树与整份 Todo，而是由 `memory_boot.py`
     生成 `BOOT.md + 项目切片` 的有界包。本脚本只做存量扫描：BOOT 是否过大、overview
     是否需要瘦身、启动近似上限是否失控。数字会变，写进规则文档就变成第二份事实源；
     因而阈值在脚本常量，实测在报告，文档只指路。
@@ -90,7 +90,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 def _find_memory_dir() -> Path:
     """定位记忆库根：环境变量 AI_MEMORY_DIR 优先；否则从 cwd / 脚本位置向上探测
-    名为 Memory 且含 Todo.md / _index.md / rule/ 之一的目录（适配任意 vault 布局）。"""
+    名为 Memory 且含 BOOT.md / Todo.md / rule/ 之一的目录（适配任意 vault 布局）。"""
     env = os.environ.get("AI_MEMORY_DIR")
     if env:
         return Path(env)
@@ -99,11 +99,11 @@ def _find_memory_dir() -> Path:
             cand = p / "Memory"
             nested = p / "vault" / "Memory"
             if nested.is_dir() and any(
-                (nested / marker).exists() for marker in ("Todo.md", "_index.md", "rule")
+                (nested / marker).exists() for marker in ("BOOT.md", "Todo.md", "rule")
             ):
                 return nested
             if cand.is_dir() and any(
-                (cand / marker).exists() for marker in ("Todo.md", "_index.md", "rule")
+                (cand / marker).exists() for marker in ("BOOT.md", "Todo.md", "rule")
             ):
                 return cand
     return Path.cwd() / "Memory"
@@ -308,8 +308,6 @@ def scan_scope_vocab() -> dict:
         if not d.is_dir():
             continue
         for f in sorted(d.glob("*.md")):
-            if f.name == "_index.md":
-                continue
             t = read_text(f)
             v = frontmatter_scope(t)
             if v is None:
@@ -321,14 +319,10 @@ def scan_scope_vocab() -> dict:
                 bad.append({"file": f"{layer}/{f.name}", "value": v})
             else:
                 eligible += 1
-    # 派生物与路径已表达归属处：两处出现即冗余（第二份事实源）
-    for layer in list(SCOPE_LAYERS) + ["Projects"]:
-        idx = MEMORY_DIR / layer / "_index.md"
-        if idx.is_file() and frontmatter_scope(read_text(idx)) is not None:
-            redundant.append(f"{layer}/_index.md")
+    # 路径已经表达归属，再填 scope 就是第二份事实源。
     for pat in ("*/*.md", "*/*/*.md"):
         for f in sorted(PROJECTS_DIR.glob(pat)) if PROJECTS_DIR.is_dir() else []:
-            if f.name == "_index.md" or frontmatter_scope(read_text(f)) is None:
+            if frontmatter_scope(read_text(f)) is None:
                 continue
             redundant.append(str(f.relative_to(MEMORY_DIR)).replace("\\", "/"))
     return {
@@ -347,9 +341,9 @@ def scan_scope_vocab() -> dict:
 TYPE_RULE_PATH = MEMORY_DIR / "rule" / "写入与禁止.md"
 TYPE_LIST_RE = re.compile(r"`type`\(([^)]*)\)")
 TYPE_FM_RE = re.compile(r"^type:\s*(\S.*?)\s*$")
-# 豁免面与 `scope` 那条同源：登记簿 / 规则文本 / 派生物 / 暂存层台账 / 整块无 frontmatter 的结构性豁免
+# 豁免面与 `scope` 那条同源：登记簿 / 规则文本 / README / 暂存层台账 / 整块无 frontmatter 的结构性豁免
 TYPE_EXEMPT_TOP = ("Inbox", "rule")
-TYPE_EXEMPT_NAMES = ("_index.md", "README.md")
+TYPE_EXEMPT_NAMES = ("README.md",)
 TYPE_EXEMPT_DIRS = ("working",)
 
 
@@ -698,7 +692,7 @@ def render(r: dict) -> str:
         else:
             out.append("  非法取值：无。")
         if s["redundant"]:
-            out.append(f"  **冗余出现 {len(s['redundant'])} 处**（`Projects/` 层内路径即归属、`_index.md` 是派生物，都不该带该字段）：")
+            out.append(f"  **冗余出现 {len(s['redundant'])} 处**（`Projects/` 层内路径即归属，不该再带该字段）：")
             for x in s["redundant"]:
                 out.append(f"  - `{x}`")
         else:
@@ -770,7 +764,7 @@ def render(r: dict) -> str:
     else:
         out.append(f"- 词表（解析自 `rule/写入与禁止.md` 第 5 条）：{', '.join(tv.get('vocab') or [])}")
         out.append(f"- 参与核对 {tv.get('scanned', 0)} 篇 / 豁免 {tv.get('exempt', 0)} 份"
-                   "（`Inbox/` 登记簿、`rule/` 规则文本、各层 `_index.md` 与 README、各 `working/` 台账、整块无 frontmatter 的结构性豁免）")
+                   "（`Inbox/` 登记簿、`rule/` 规则文本、README、各 `working/` 台账、整块无 frontmatter 的结构性豁免）")
         for b in (tv.get("bad") or [])[:20]:
             out.append(f"  [!] 词表外取值：{b['file']} -> {b['value']}（改字段还是扩词表，由人裁定）")
         for x in (tv.get("missing") or [])[:20]:
@@ -923,7 +917,7 @@ def main() -> int:
         return 1
 
     if args.scope_check and scope_violations:
-        print(f"[!] scope 违规 {scope_violations} 处 —— 合法值 = global 或 Projects/ 目录名；Projects/ 层内与 _index.md 不填该字段", file=sys.stderr)
+        print(f"[!] scope 违规 {scope_violations} 处 —— 合法值 = global 或 Projects/ 目录名；Projects/ 层内不填该字段", file=sys.stderr)
         return 1
 
     if violations:

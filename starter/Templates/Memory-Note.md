@@ -8,7 +8,7 @@ tags: []
 # <一句话标题：脱离本次会话也能独立读懂>
 
 <!-- scope 不在这里预填：只有跨层五层（Preferences / Plans / Decisions / Lessons / Workflows）才填，
-     Projects/ 内、各层 _index、Inbox 登记簿与 working/ 台账一律不填。判据正本 = 第 5 条，此处不复制口径。 -->
+     Projects/ 内、Inbox 登记簿与 working/ 台账一律不填。判据正本 = 第 5 条，此处不复制口径。 -->
 <!-- 决策类笔记另需 frontmatter `status` 与正文「备选方案」节；规则反转 = 新建笔记指向旧笔记，不覆盖原件。 -->
 
 ## 结论 / 事实

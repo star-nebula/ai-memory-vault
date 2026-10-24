@@ -36,7 +36,6 @@ class MemoryAgentContextTest(unittest.TestCase):
             "---\ntype: boot\n---\n# Global hot memory\n\n- Answer in Chinese.\n",
             encoding="utf-8",
         )
-        (self.memory / "_index.md").write_text("SHOULD_NOT_APPEAR_IN_BOOT\n", encoding="utf-8")
         (self.memory / "Todo.md").write_text(
             "# Todo\n\n## demo\n\n- finish bounded retrieval\n\n## other\n\n- unrelated\n",
             encoding="utf-8",
@@ -55,7 +54,7 @@ class MemoryAgentContextTest(unittest.TestCase):
         )
         (self.memory / "Lessons" / "bounded-memory.md").write_text(
             "---\ntype: lesson\nscope: demo\nstatus: active\nupdated: 2026-10-23\n"
-            "tags: [memory, retrieval]\n---\n# 启动读取过多\n\n按项目切片并使用有界检索，避免读取整个索引。\n",
+            "tags: [memory, retrieval]\n---\n# 启动读取过多\n\n按项目切片并使用有界检索，避免预读整棵记忆树。\n",
             encoding="utf-8",
         )
         (self.memory / "Decisions" / "old-memory.md").write_text(
@@ -122,7 +121,7 @@ class MemoryAgentContextTest(unittest.TestCase):
         section = extract_todo_section("## demo（说明）\n\n- task\n", "demo")
         self.assertIn("- task", section)
 
-    def test_boot_pack_is_small_and_does_not_read_index(self):
+    def test_boot_pack_is_small_and_reads_only_whitelisted_files(self):
         with patch("memory_boot.read_text", wraps=memory_boot.read_text) as read_mock:
             pack = build_boot_pack(self.memory, project="demo", budget=6000)
         text = pack["text"]
@@ -130,12 +129,11 @@ class MemoryAgentContextTest(unittest.TestCase):
         self.assertIn("Project overview", text)
         self.assertIn("Project state", text)
         self.assertIn("finish bounded retrieval", text)
-        self.assertNotIn("SHOULD_NOT_APPEAR_IN_BOOT", text)
         self.assertNotIn("type: project-fact", text)
         self.assertLessEqual(pack["chars"], 6000)
         self.assertIn("BOOT.md", pack["files"])
-        read_names = [call.args[0].name for call in read_mock.call_args_list]
-        self.assertNotIn("_index.md", read_names)
+        read_names = {call.args[0].name for call in read_mock.call_args_list}
+        self.assertEqual(read_names, {"BOOT.md", "_overview.md", "_state.md", "Todo.md"})
 
     def test_boot_truncation_fields_are_separate(self):
         (self.project / "_overview.md").write_text("A" * 5000, encoding="utf-8")

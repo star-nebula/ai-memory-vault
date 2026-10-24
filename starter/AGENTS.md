@@ -12,7 +12,7 @@
 3. **查原因 / 查历史 / 查踩坑**：运行
    `python scripts/memory_query.py "关键词" --cwd .`，
    默认只返回前几条命中片段，不展开整篇笔记。
-4. **禁止在启动时读** `Memory/_index.md` 或各层 `_index.md`；它们是校验用派生物，不是 Agent 启动页。
+4. **禁止预读整棵记忆树**。启动只取 `memory_boot.py` 返回的包；需要更多背景时再用 `memory_query.py` 做有界检索。
 5. 同一会话中，启动包只加载一次；除非用户要求刷新或记忆发生变化，否则不要反复读取同一文件。
 
 ## 硬规则
@@ -32,7 +32,7 @@
 
 ## 同名文件消歧（易混清单）
 
-> 完整五组表只此一份；`Memory/_index.md` §六 只留指回本节的指针。
+> 完整五组表只此一份；不再维护人看索引或第二份副本。
 
 | 易混名 | 有两处（或多处） | 该取 |
 |---|---|---|
@@ -46,4 +46,5 @@
 
 - `scripts/memory_boot.py`：生成小型启动包。
 - `scripts/memory_query.py`：有界关键词检索，返回路径与片段。
-- `scripts/mem_index.py`、`scripts/todo_audit.py`、`scripts/encoding_guard.py`：校验与维护。
+- `scripts/todo_audit.py`、`scripts/encoding_guard.py`：校验与维护。
+- `scripts/sync_memory_instructions.py`：分发并校验各 AI 工具的用户级/项目级指令。

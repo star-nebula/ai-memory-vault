@@ -14,9 +14,9 @@ Over three weeks of daily use this system grew gate scripts, bounded retrieval c
 | Directory | What it is |
 |---|---|
 | [docs/](docs/) | **Design rationale**: why it's built this way, the real incidents behind every gate (Chinese) |
-| [docs/06-agent-first-p0验证.md](docs/06-agent-first-p0验证.md) | **P0 prototype**: Agent-first boot pack, bounded query, no index-at-boot |
+| [docs/06-agent-first-p0验证.md](docs/06-agent-first-p0验证.md) | **P0 prototype**: Agent-first boot pack, bounded query, minimal startup context |
 | [starter/](starter/) | **Copy-and-go skeleton**: directory layout + full rulebook + sample project |
-| [scripts/](scripts/) | **Agent commands + gates**: boot pack, bounded query, index builder, todo auditor, encoding guard, instruction sync |
+| [scripts/](scripts/) | **Agent commands + gates**: boot pack, bounded query, todo auditor, encoding guard, instruction sync |
 
 ## Demo
 
@@ -31,7 +31,7 @@ The vault's own workflow, drawn as a **live panel**: fixed layout, packets flowi
 1. **Near-zero configuration**. The whole system = Markdown files + stdlib-only scripts. No services, no dependencies, no config files; the entry point is your tool auto-reading the root `AGENTS.md`, and scripts find `Memory/` by walking up the tree — copying it in *is* the install.
 2. **One memory location**. All cross-session information lives in the Markdown vault; writing to any tool-private memory spot is forbidden (`.workbuddy/memory/`, `~/.claude/`, auto-memory…). Tool-side configs only keep a pointer + the iron-rule hook.
 3. **Structured layers**. Memory is not one pile of notes: `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects/<name>/`, plus global `Todo.md`, the write-ledger `Inbox/`, and quarterly `Archive/`.
-4. **Indexes are derived artifacts, not boot context**. Hand-maintained indexes always drift. Each content layer except `Decisions/` gets a generated `_index.md` from `mem_index.py`; the agent does not read those pages at session start. `memory_boot.py` builds the bounded hot/project pack, and `memory_query.py` performs bounded retrieval.
+4. **Minimal context by default**. The agent does not browse the memory tree. `memory_boot.py` builds a bounded hot/project pack, and `memory_query.py` returns ranked snippets on demand, so session startup stays small and predictable.
 5. **Closed = moved, not marked**. A finished or cancelled todo is appended to `Projects/<name>/working/completed.md` (with date, outcome, reason and source) and **deleted from Todo.md** — never a ✅ or a permanent strikethrough in place. The `todo_audit.py` gate blocks leftovers.
 6. **Only gated steps stay drift-free**. "Remember to sync" has been proven to fail repeatedly. Every gate in this repo was born from a real incident — see [docs/04](docs/04-演化史-门禁背后的事故.md).
 7. **Privacy boundaries enforced by guards**. The memory layer is `.gitignore`d out of public repos and a `pre-commit` hook **rejects any commit touching it** — don't rely on discipline, rely on guards.
@@ -45,7 +45,6 @@ your-vault/                   ← your notes repo / workspace root (a plain Mark
 └── Memory/                   ← the memory vault itself (the single memory location)
     ├── AGENTS.md             ← iron rules + short hook (deployed into every tool's system prompt)
     ├── BOOT.md               ← only always-on hot layer (small, stable facts)
-    ├── _index.md             ← hand-maintained map; layer _index.md files are generated catalogs; neither is read at boot
     ├── Rule.md               ← rulebook TOC: operation → section mapping
     ├── rule/                 ← four rule sections (write / wrap-up / sub-agents / vibe-coding)
     ├── Todo.md               ← global todos, grouped by project (no checkboxes)
@@ -64,7 +63,6 @@ Clone (or download and unzip) https://github.com/star-nebula/ai-memory-vault ,
 copy everything under starter/ into the root of my memory-vault workspace — if I already
 have a notes repo use its root, otherwise create an empty directory. Also copy the
 scripts/ directory into that workspace (the gates are not inside starter/).
-Then run python scripts/mem_index.py --write in that directory to build the indexes.
 Run python scripts/memory_boot.py --cwd . --json and python scripts/memory_query.py "test" --json. Finally read the workspace-root AGENTS.md, and tell me back:
 when you will load memory, how you will query it, and how you will write it.
 ```
@@ -81,8 +79,6 @@ cp -r starter/* scripts /path/to/your-vault/
 That's it — no placeholders to replace, no dependencies to install. Two **optional** follow-ups:
 
 ```bash
-python scripts/mem_index.py --write     # build layer indexes (derived; rerun after adding notes)
-python scripts/mem_index.py --check     # index drift gate
 python scripts/todo_audit.py --check    # todo archiving gate
 python scripts/encoding_guard.py <path> # encoding + bare-control-character gate
 ```
@@ -93,7 +89,8 @@ python scripts/encoding_guard.py <path> # encoding + bare-control-character gate
 
 | Script | What it blocks |
 |---|---|
-| `mem_index.py` | Hand-maintained index drift; stale index cells; broken single-source disambiguation table/pointer; orphaned decision anchors; a missing read-time freshness protocol |
+| `memory_boot.py` | Unbounded session startup; silent section truncation; missing project context |
+| `memory_query.py` | Whole-note expansion; project/scope leakage; archived/superseded results unless explicitly requested |
 | `todo_audit.py` | Closed-but-not-moved leftovers; group names not matching project dirs; fake "already moved to Todo" claims; out-of-vocabulary frontmatter types; (report-only) Inbox audit backlog |
 | `encoding_guard.py` | Non-UTF-8 / BOM leftovers; bare control characters left by AI escape-swallowing — the invisible killer that makes files binary to grep |
 | `sync_memory_instructions.py` | Drift between each tool's instruction slot and the single source; bare control characters in the source; `<项目名>` placeholder pseudo-values |
