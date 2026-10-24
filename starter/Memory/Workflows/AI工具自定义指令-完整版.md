@@ -7,7 +7,7 @@
 - 普通问答 / 单轮任务：不默认扫描记忆库；需要用户偏好时只读 `Memory/BOOT.md`。
 - 项目任务：运行 `python scripts/memory_boot.py --cwd .`。它只返回全局热记忆、当前项目 `_overview.md`、`_state.md` 与 Todo 切片。
 - 查原因 / 历史 / 踩坑：运行 `python scripts/memory_query.py "关键词" --cwd .`；默认返回 top-k 片段，排除 archived/superseded。
-- 不要预读整棵记忆树；启动只取上面的有界包，更多背景按需检索。
+- 不要预扫记忆库；启动只取上面的有界包，更多背景按需检索。
 - 同一会话只加载一次启动包；除非用户要求刷新或记忆已写入，不要反复读取同一文件。
 
 ## 写入
@@ -15,7 +15,7 @@
 1. 先读 `Memory/rule/写入与禁止.md` 对应分节，再写最终位置。
 2. 每次写入后在同日 `Memory/Inbox/YYYY-MM-DD.md` 登记路径与一句话摘要。
 3. 待办统一进 `Memory/Todo.md`；完成 = 追加到 `Projects/<项目名>/working/completed/YYYY-QX.md` 并从 Todo 删除。
-4. 用户手改的文件绝不自动改；决策反转新建笔记并互链。
+4. 用户手改的文件绝不自动改；决策反转要新建卡并互链。
 
 ## 禁止
 
@@ -25,5 +25,5 @@
 ## 派发子代理
 
 - 记忆库位于工作区根 `Memory/`；写前按 `Memory/Rule.md` 的映射读对应分节。
-- 第一动作：按任务运行 `memory_boot.py` 或 `memory_query.py`，不要预读整棵记忆树。
+- 第一动作：按任务运行 `memory_boot.py` 或 `memory_query.py`，不要扫整库。
 - 完成重要工作后回传「是否需落记忆库」；只读子代理须列出待落库条目，由父会话代写。

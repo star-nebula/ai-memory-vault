@@ -434,15 +434,29 @@ def deploy_projects(check_only):
         target = os.path.join(roots[name], HOOK_NAME)
         want = hook_text(name, body)
         if os.path.exists(target):
-            cur = io.open(target, encoding="utf-8", errors="replace").read().strip()
+            with io.open(target, encoding="utf-8", errors="replace") as f:
+                cur = f.read().strip()
             mine = cur.startswith("# 记忆库 · 项目级入口")
             if not mine:
                 log("[KEEP] %-24s 已有非本脚本生成的 %s —— 按「用户手改文件绝不自动改」不覆盖"
                     % (name, HOOK_NAME))
                 continue
             if cur != want.strip():
-                log("[DRIFT] %-24s 钩子与真源不一致：%s" % (name, target))
-                problems += 1
+                if check_only:
+                    log("[DRIFT] %-24s 钩子与真源不一致：%s" % (name, target))
+                    problems += 1
+                else:
+                    bak = backup_file(target)
+                    with io.open(target, "w", encoding="utf-8", newline="") as f:
+                        f.write(want)
+                    with io.open(target, encoding="utf-8") as f:
+                        recheck = f.read()
+                    if bad_ctrl(recheck):
+                        log("[FATAL] %-24s 更新后检出裸控制符：%s" % (name, target))
+                        problems += 1
+                    else:
+                        log("[UPDATE] %-24s 已更新为真源（备份 %s）"
+                            % (name, os.path.basename(bak)))
             else:
                 log("[OK]   %-24s 钩子在位且一致：%s" % (name, target))
             continue

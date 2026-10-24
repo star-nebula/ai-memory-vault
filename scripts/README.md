@@ -86,7 +86,7 @@ python encoding_guard.py <路径> --no-ctrl       # 跳过控制符段（超大�
 ```bash
 python sync_memory_instructions.py              # 部署真源到各工具位（幂等）
 python sync_memory_instructions.py --check      # 只读比对 + 真源裸控制符 + 声明位伪值 → 漂移退出码 1
-python sync_memory_instructions.py --projects   # 部署项目级钩子（只新建不覆盖；无唯一代码根只报告不猜）
+python sync_memory_instructions.py --projects   # 新建/更新脚本生成的钩子；手写文件保持 KEEP，无唯一代码根只报告不猜
 ```
 
 - 真源 = `Memory/Workflows/AI工具自定义指令-完整版.md`（唯一可编辑来源）
