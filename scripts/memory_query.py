@@ -96,6 +96,19 @@ def _note_date_bounds(
     return None
 
 
+def _shard_date_bounds(path: Path) -> Optional[tuple[date, date]]:
+    month = re.fullmatch(r"(\d{4})-(\d{2})\.md", path.name)
+    if month and path.parent.name == "journal":
+        try:
+            return _month_bounds(int(month.group(1)), int(month.group(2)))
+        except ValueError:
+            return None
+    quarter = re.fullmatch(r"(\d{4})-Q([1-4])\.md", path.name)
+    if quarter and path.parent.name == "completed":
+        return _quarter_bounds(int(quarter.group(1)), int(quarter.group(2)))
+    return None
+
+
 def _overlaps(
     bounds: tuple[date, date],
     since: Optional[date],
@@ -114,13 +127,25 @@ def _is_inactive(status: str) -> bool:
     return any(value.startswith(prefix) for prefix in INACTIVE_STATUSES)
 
 
-def _iter_notes(memory_dir: Path, include_history: bool, project: Optional[str] = None,
-                all_projects: bool = False):
+def _iter_notes(
+    memory_dir: Path,
+    include_history: bool,
+    project: Optional[str] = None,
+    all_projects: bool = False,
+    since: Optional[date] = None,
+    until: Optional[date] = None,
+    layers: Optional[set[str]] = None,
+):
     for path in sorted(memory_dir.rglob("*.md")):
         if not path.is_file() or path.name in SKIP_FILES:
             continue
         rel_parts = path.relative_to(memory_dir).parts
         if any(part in SKIP_DIRS for part in rel_parts):
+            continue
+        if layers and rel_parts[0].lower() not in layers:
+            continue
+        shard_bounds = _shard_date_bounds(path)
+        if (since or until) and shard_bounds and not _overlaps(shard_bounds, since, until):
             continue
         if not include_history and (rel_parts[0] in ("Inbox", "Archive") or "working" in rel_parts):
             continue
@@ -172,9 +197,15 @@ def search_memory(
     layer_filter = {layer.strip().lower() for layer in layers or [] if layer.strip()}
     matches: List[Dict[str, object]] = []
 
-    for path, rel_parts in _iter_notes(memory_dir, include_history, project=project, all_projects=all_projects):
-        if layer_filter and rel_parts[0].lower() not in layer_filter:
-            continue
+    for path, rel_parts in _iter_notes(
+        memory_dir,
+        include_history,
+        project=project,
+        all_projects=all_projects,
+        since=since,
+        until=until,
+        layers=layer_filter,
+    ):
         text = read_text(path)
         frontmatter, body = split_frontmatter(text)
         typ = frontmatter.get("type", "").lower()

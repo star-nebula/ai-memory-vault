@@ -226,13 +226,17 @@ class MemoryAgentContextTest(unittest.TestCase):
             "---\ntype: journal\n---\n# 时间窗命中 十月\n\n新记录。\n",
             encoding="utf-8",
         )
-        result = search_memory(
-            self.memory,
-            "时间窗命中",
-            project="demo",
-            include_history=True,
-            since=date(2026, 10, 1),
-        )
+        with patch("memory_query.read_text", wraps=memory_query.read_text) as read_mock:
+            result = search_memory(
+                self.memory,
+                "时间窗命中",
+                project="demo",
+                include_history=True,
+                since=date(2026, 10, 1),
+            )
+        read_names = {call.args[0].name for call in read_mock.call_args_list}
+        self.assertNotIn("2026-09.md", read_names)
+        self.assertIn("2026-10.md", read_names)
         self.assertEqual(
             [match["path"] for match in result["matches"]],
             ["Projects/demo/working/journal/2026-10.md"],

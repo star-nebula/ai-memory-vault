@@ -37,7 +37,7 @@ python memory_query.py "关键词" --layers Decisions,Lessons
 - 无法识别项目时默认只搜 `scope: global`；跨项目检索必须显式加 `--all-projects`。
 - 指定项目时，`Projects/<项目>` 之外的项目树不会进入结果；跨层笔记必须 `scope` 为该项目的名称或 `global`。
 - 默认跳过 `Inbox/`、`Archive/`、`working/`；查历史时加 `--include-history`。
-- `--since/--until` 按笔记日期区间过滤；journal 月分片与 completed 季度分片按分片范围参与相交判断。
+- `--since/--until` 按笔记日期区间过滤；journal 月分片与 completed 季度分片在读取前按分片范围跳过不相交文件。
 - `--layers` 限定内容层，例如 `Decisions,Lessons,Projects`。
 - `text` 返回路径、类型、scope、status、更新日期、`verified_at` 和片段，不展开整篇笔记；`--json` 的 `matches` 只放元数据，避免重复正文。
 ## `todo_audit.py` —— 待办归档体检（日常门禁 + 季度门禁 + 报告项）
