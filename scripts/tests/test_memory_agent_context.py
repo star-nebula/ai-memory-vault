@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -212,6 +213,53 @@ class MemoryAgentContextTest(unittest.TestCase):
         self.assertEqual(
             [match["path"] for match in history["matches"]],
             ["Projects/demo/working/journal/2026-10.md"],
+        )
+
+    def test_query_filters_sharded_history_by_date_window(self):
+        working = self.project / "working" / "journal"
+        working.mkdir(parents=True)
+        (working / "2026-09.md").write_text(
+            "---\ntype: journal\n---\n# 时间窗命中 九月\n\n旧记录。\n",
+            encoding="utf-8",
+        )
+        (working / "2026-10.md").write_text(
+            "---\ntype: journal\n---\n# 时间窗命中 十月\n\n新记录。\n",
+            encoding="utf-8",
+        )
+        result = search_memory(
+            self.memory,
+            "时间窗命中",
+            project="demo",
+            include_history=True,
+            since=date(2026, 10, 1),
+        )
+        self.assertEqual(
+            [match["path"] for match in result["matches"]],
+            ["Projects/demo/working/journal/2026-10.md"],
+        )
+        self.assertEqual(result["matches"][0]["date_from"], "2026-10-01")
+        self.assertEqual(result["matches"][0]["date_to"], "2026-10-31")
+
+    def test_query_filters_by_layer(self):
+        (self.memory / "Decisions" / "layer-decision.md").write_text(
+            "---\ntype: decision\nscope: demo\nstatus: implemented\n---\n"
+            "# 层级过滤命中\n\n决策层。\n",
+            encoding="utf-8",
+        )
+        (self.memory / "Lessons" / "layer-lesson.md").write_text(
+            "---\ntype: lesson\nscope: demo\nstatus: active\n---\n"
+            "# 层级过滤命中\n\n教训层。\n",
+            encoding="utf-8",
+        )
+        result = search_memory(
+            self.memory,
+            "层级过滤命中",
+            project="demo",
+            layers=["Lessons"],
+        )
+        self.assertEqual(
+            [match["path"] for match in result["matches"]],
+            ["Lessons/layer-lesson.md"],
         )
 
     def test_query_snippet_is_bounded(self):

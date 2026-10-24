@@ -15,6 +15,7 @@ import argparse
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -39,6 +40,73 @@ SNIPPET_CHARS = 420
 SKIP_DIRS = {"__pycache__", ".git", ".obsidian", ".trash", "scripts", "Templates", "rule"}
 SKIP_FILES = {"README.md", "AGENTS.md", "Rule.md", "BOOT.md"}
 INACTIVE_STATUSES = ("archived", "superseded")
+
+
+def _parse_date(value: str) -> Optional[date]:
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value or ""):
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _month_bounds(year: int, month: int) -> tuple[date, date]:
+    start = date(year, month, 1)
+    if month == 12:
+        end = date(year, 12, 31)
+    else:
+        end = date(year, month + 1, 1)
+        end = date.fromordinal(end.toordinal() - 1)
+    return start, end
+
+
+def _quarter_bounds(year: int, quarter: int) -> tuple[date, date]:
+    start_month = (quarter - 1) * 3 + 1
+    start = date(year, start_month, 1)
+    _, end = _month_bounds(year, start_month + 2)
+    return start, end
+
+
+def _note_date_bounds(
+    path: Path,
+    frontmatter: Dict[str, str],
+    body: str,
+) -> Optional[tuple[date, date]]:
+    dates = []
+    for value in re.findall(r"^##\s+(\d{4}-\d{2}-\d{2})\s*$", body, re.M):
+        parsed = _parse_date(value)
+        if parsed:
+            dates.append(parsed)
+    if dates:
+        return min(dates), max(dates)
+
+    month = re.fullmatch(r"(\d{4})-(\d{2})\.md", path.name)
+    if month and path.parent.name == "journal":
+        return _month_bounds(int(month.group(1)), int(month.group(2)))
+
+    quarter = re.fullmatch(r"(\d{4})-Q([1-4])\.md", path.name)
+    if quarter and path.parent.name == "completed":
+        return _quarter_bounds(int(quarter.group(1)), int(quarter.group(2)))
+
+    for key in ("updated", "created"):
+        parsed = _parse_date(frontmatter.get(key, ""))
+        if parsed:
+            return parsed, parsed
+    return None
+
+
+def _overlaps(
+    bounds: tuple[date, date],
+    since: Optional[date],
+    until: Optional[date],
+) -> bool:
+    start, end = bounds
+    if since and end < since:
+        return False
+    if until and start > until:
+        return False
+    return True
 
 
 def _is_inactive(status: str) -> bool:
@@ -89,6 +157,9 @@ def search_memory(
     include_inactive: bool = False,
     include_history: bool = False,
     all_projects: bool = False,
+    since: Optional[date] = None,
+    until: Optional[date] = None,
+    layers: Optional[List[str]] = None,
 ) -> Dict[str, object]:
     if project:
         project = validate_project_name(memory_dir, project)
@@ -98,9 +169,12 @@ def search_memory(
         return {"query": query, "project": project, "matches": [], "total_before_budget": 0}
 
     type_filter = {t.strip().lower() for t in types or [] if t.strip()}
+    layer_filter = {layer.strip().lower() for layer in layers or [] if layer.strip()}
     matches: List[Dict[str, object]] = []
 
     for path, rel_parts in _iter_notes(memory_dir, include_history, project=project, all_projects=all_projects):
+        if layer_filter and rel_parts[0].lower() not in layer_filter:
+            continue
         text = read_text(path)
         frontmatter, body = split_frontmatter(text)
         typ = frontmatter.get("type", "").lower()
@@ -110,6 +184,9 @@ def search_memory(
         if not include_inactive and _is_inactive(status):
             continue
         scope = frontmatter.get("scope", "")
+        bounds = _note_date_bounds(path, frontmatter, body) if (since or until) else None
+        if (since or until) and (bounds is None or not _overlaps(bounds, since, until)):
+            continue
 
         in_project_tree = len(rel_parts) >= 2 and rel_parts[0] == "Projects"
         if project:
@@ -154,6 +231,8 @@ def search_memory(
             "status": status or "active",
             "verified_at": frontmatter.get("verified_at", ""),
             "updated": frontmatter.get("updated", ""),
+            "date_from": bounds[0].isoformat() if bounds else "",
+            "date_to": bounds[1].isoformat() if bounds else "",
             "score": score,
             "snippet": _snippet(body, terms),
         })
@@ -178,6 +257,8 @@ def _render_text(result: Dict[str, object], budget: int) -> str:
                 "type: %s | scope: %s | status: %s | updated: %s | verified: %s" % (
                     match["type"], match["scope"] or "-", match["status"],
                     match["updated"] or "-", match["verified_at"] or "-"),
+                "range: %s..%s" % (
+                    match["date_from"] or "-", match["date_to"] or "-"),
                 "> %s" % match["snippet"],
             ])
         text = "\n".join(chunks).strip() + "\n"
@@ -200,6 +281,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--budget", type=int, default=DEFAULT_BUDGET, help="maximum characters in the text field")
     parser.add_argument("--include-inactive", action="store_true", help="include archived/superseded notes")
     parser.add_argument("--include-history", action="store_true", help="include Inbox/Archive/working files")
+    parser.add_argument("--since", help="include notes intersecting YYYY-MM-DD or later")
+    parser.add_argument("--until", help="include notes intersecting YYYY-MM-DD or earlier")
+    parser.add_argument("--layers", help="comma-separated layers, e.g. Decisions,Lessons,Projects")
     parser.add_argument("--json", action="store_true", help="emit metadata plus bounded text as JSON")
     args = parser.parse_args(argv)
 
@@ -212,8 +296,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 2
 
     try:
+        since = _parse_date(args.since) if args.since else None
+        until = _parse_date(args.until) if args.until else None
+        if (args.since and since is None) or (args.until and until is None):
+            print("since/until must use YYYY-MM-DD", file=sys.stderr)
+            return 2
+        if since and until and since > until:
+            print("since must not be later than until", file=sys.stderr)
+            return 2
         project = args.project or detect_project(memory_dir, cwd=args.cwd)
         types = args.types.split(",") if args.types else None
+        layers = args.layers.split(",") if args.layers else None
         result = search_memory(
             memory_dir=memory_dir,
             query=args.query,
@@ -223,6 +316,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             include_inactive=args.include_inactive,
             include_history=args.include_history,
             all_projects=args.all_projects,
+            since=since,
+            until=until,
+            layers=layers,
         )
     except InvalidProjectError as exc:
         print(str(exc), file=sys.stderr)
@@ -240,6 +336,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         ]
         payload["budget"] = args.budget
         payload["budget_scope"] = "text"
+        payload["since"] = args.since or ""
+        payload["until"] = args.until or ""
+        payload["layers"] = [layer for layer in (args.layers or "").split(",") if layer]
         full_text = _render_text(result, 10 ** 9)
         payload["text"] = text
         payload["chars"] = len(text)

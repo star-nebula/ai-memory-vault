@@ -12,6 +12,7 @@
 3. **查原因 / 查历史 / 查踩坑**：运行
    `python scripts/memory_query.py "关键词" --cwd .`，
    默认只返回前几条命中片段，不展开整篇笔记。
+   需要历史时间窗或层级时加 `--include-history --since YYYY-MM-DD` / `--layers Decisions,Lessons`。
 4. **禁止预读整棵记忆树**。启动只取 `memory_boot.py` 返回的包；需要更多背景时再用 `memory_query.py` 做有界检索。
 5. 同一会话中，启动包只加载一次；除非用户要求刷新或记忆发生变化，否则不要反复读取同一文件。
 
