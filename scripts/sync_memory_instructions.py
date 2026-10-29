@@ -100,6 +100,11 @@ def _find_memory_dir() -> Path:
                 (cand / marker).exists() for marker in ("BOOT.md", "Todo.md", "rule")
             ):
                 return cand
+            nested = p / "vault" / "Memory"
+            if nested.is_dir() and any(
+                (nested / marker).exists() for marker in ("BOOT.md", "Todo.md", "rule")
+            ):
+                return nested
     return Path.cwd() / "Memory"
 
 
@@ -357,6 +362,8 @@ def roots_from_overview(name):
     if len(uniq) != 1:
         return None
     root = uniq[0]
+    if not _is_within_code_root(root):
+        return None
     # 深度门：代码根自身或某个「组」目录被 overview 顺带提到时不能当代码根
     # （钩子写进 CODE_ROOT 会作用于其下全部项目）。
     rel = os.path.relpath(root, CODE_ROOT)
@@ -364,6 +371,16 @@ def roots_from_overview(name):
     if not (MIN_DEPTH <= len(parts) <= MAX_DEPTH):
         return None
     return root
+
+
+def _is_within_code_root(root):
+    try:
+        code_root = os.path.realpath(CODE_ROOT)
+        resolved_root = os.path.realpath(root)
+        common = os.path.commonpath([code_root, resolved_root])
+        return os.path.normcase(common) == os.path.normcase(code_root)
+    except (OSError, ValueError):
+        return False
 
 
 def project_roots():
@@ -376,15 +393,20 @@ def project_roots():
     if not os.path.isdir(CODE_ROOT) or not os.path.isdir(MEMORY_PROJECTS):
         return {}, []
     index = {}
-    base = os.path.abspath(CODE_ROOT).rstrip("\\")
-    base_depth = base.count("\\")
+    base = Path(CODE_ROOT).resolve()
     for dirpath, dirnames, _ in os.walk(CODE_ROOT):
         dirnames[:] = [d for d in dirnames if d not in DIR_SKIP and not d.startswith(".")]
-        depth = os.path.abspath(dirpath).rstrip("\\").count("\\") - base_depth
+        try:
+            depth = len(Path(dirpath).resolve().relative_to(base).parts)
+        except ValueError:
+            dirnames[:] = []
+            continue
         for d in dirnames:
             if depth + 1 < MIN_DEPTH or depth + 1 > MAX_DEPTH:
                 continue
-            index.setdefault(norm_name(d), []).append(os.path.join(dirpath, d))
+            candidate = os.path.join(dirpath, d)
+            if _is_within_code_root(candidate):
+                index.setdefault(norm_name(d), []).append(candidate)
         if depth + 1 >= MAX_DEPTH:
             dirnames[:] = []
     out, unresolved = {}, []
@@ -408,6 +430,8 @@ def hook_text(project, body):
     ov = os.path.join(memory_root, "Projects", project)
     boot_script = os.path.join(str(SCRIPT_DIR), "memory_boot.py")
     query_script = os.path.join(str(SCRIPT_DIR), "memory_query.py")
+    body = body.replace("python scripts/memory_boot.py", 'python "%s"' % boot_script)
+    body = body.replace("python scripts/memory_query.py", 'python "%s"' % query_script)
     body = body.replace("`Memory/Rule.md`", "`%s/Rule.md`" % memory_root.replace("\\", "/"))
     body = body.replace("`Memory\\Rule.md`", "`%s\\Rule.md`" % memory_root)
     body = body.replace("`Memory/`", "`%s/`" % memory_root.replace("\\", "/"))
@@ -429,7 +453,8 @@ def hook_text(project, body):
         "- 启动：`python \"%s\" --cwd .`；只加载热层、本项目 overview/state 与 Todo 切片。" % boot_script,
         "- 按需查历史/原因/踩坑：`python \"%s\" \"关键词\" --project %s --cwd .`。" % (query_script, project),
         "- 不预读整棵记忆树；按上面的启动包与检索命令取最小上下文。",
-        "- 项目档案：`%s\\_overview.md`；当前状态：`%s\\_state.md`。" % (ov, ov),
+        "- 项目档案：`%s`；当前状态：`%s`。" % (
+            os.path.join(ov, "_overview.md"), os.path.join(ov, "_state.md")),
         "- 跨层笔记（`Decisions\\` `Lessons\\` `Preferences\\` `Workflows\\`）按 `scope` 检索，不按目录通读。",
         "- Todo 分组不存在时**别静默**：先检索 scope，再问用户是否为本项目建档。",
         "",
@@ -453,7 +478,15 @@ def deploy_projects(check_only):
         % (len(body), len(roots) + len(unresolved), len(roots)))
     problems = 0
     for name in sorted(roots):
+        if not _is_within_code_root(roots[name]):
+            log("[SKIP] %-24s 代码根解析到 CODE_ROOT 之外：%s" % (name, roots[name]))
+            problems += 1
+            continue
         target = os.path.join(roots[name], HOOK_NAME)
+        if not _is_within_code_root(target):
+            log("[SKIP] %-24s %s 解析到 CODE_ROOT 之外：%s" % (name, HOOK_NAME, target))
+            problems += 1
+            continue
         want = hook_text(name, body)
         if os.path.exists(target):
             with io.open(target, encoding="utf-8", errors="replace") as f:

@@ -21,7 +21,7 @@ HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.M)
 PROJECT_NAME_RE = re.compile(r"当前项目名\s*[：:]\s*(?:`([^`]+)`|\*\*([^*\r\n]+)\*\*|([^\s*`]+))")
 TRAILING_PAREN_RE = re.compile(r"\s*(?:（[^（）]*）|\([^()]*\))$")
 
-DEFAULT_BUDGET = 6000
+DEFAULT_BUDGET = 6600
 STATE_PLACEHOLDER_MARKERS = (
     "P0 切换时建立",
     "迁移预演占位",
@@ -75,10 +75,10 @@ def find_memory_dir(explicit: Optional[str] = None, start: Optional[str] = None)
                 return current
             candidate = current / "Memory"
             nested = current / "vault" / "Memory"
-            if nested.is_dir() and is_memory_root(nested):
-                return nested
             if candidate.is_dir() and is_memory_root(candidate):
                 return candidate
+            if nested.is_dir() and is_memory_root(nested):
+                return nested
             if current.parent == current:
                 break
             current = current.parent
@@ -272,4 +272,3 @@ def query_terms(query: str) -> List[str]:
 
 def rel_posix(path: Path, root: Path) -> str:
     return path.relative_to(root).as_posix()
-

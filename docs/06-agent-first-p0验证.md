@@ -32,7 +32,7 @@ python scripts/memory_query.py "关键词" --cwd . --limit 5 --budget 5000
 
 ### `memory_query.py`
 
-- 默认只排除 `archived` / `superseded`，其他 status 保留；
+- 默认只排除 `archived` / `superseded` / `rejected`，其他 status 保留；
 - 无法识别项目时默认只搜 `scope: global`；跨项目检索必须显式加 `--all-projects`；
 - 指定项目时，`Projects/<项目>` 之外的项目树不会进入结果；跨层笔记必须 `scope` 为该项目或 `global`；
 - 默认跳过 `Inbox/`、`Archive/`、`working/`；

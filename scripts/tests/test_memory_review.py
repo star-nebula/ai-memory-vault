@@ -166,6 +166,21 @@ class MemoryReviewTest(unittest.TestCase):
         payload = json.loads(completed.stdout)
         self.assertEqual(payload["counts"]["review_status"], 1)
 
+    def test_out_creates_missing_parent_directory(self):
+        report_path = Path(self.temp.name) / "reports" / "review.txt"
+        env = os.environ.copy()
+        env["AI_MEMORY_DIR"] = str(self.memory)
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPTS / "memory_review.py"), "--out", str(report_path)],
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertTrue(report_path.is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

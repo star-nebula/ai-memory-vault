@@ -39,10 +39,11 @@
 
 ```text
 你的库根/                     ← 笔记库 / 工作区根（纯 Markdown 目录即可）
-├── AGENTS.md                 ← 仓根入口：AI 进来的第一站（四张面孔总表）
+├── AGENTS.md                 ← 仓根入口：定义启动与读写边界
 ├── Templates/                ← 笔记模板（Memory-Note / Memory-Inbox-Note）
 └── Memory/                   ← 记忆库本体（唯一记忆落点）
-    ├── AGENTS.md             ← 铁律正本 + 短版钩子（分发到各工具常驻系统提示）
+    ├── BOOT.md               ← 全局热记忆：只放跨项目稳定信息
+    ├── AGENTS.md             ← 记忆库入口与规则指针
     ├── Rule.md               ← 规则目录页：操作 → 分节文件映射
     ├── rule/                 ← 规则分节：写入与禁止 / 收尾与维护 / 子代理与脚本 / vibe-coding
     ├── Todo.md               ← 全局总待办（按项目分组，不用勾选框）
@@ -50,7 +51,8 @@
     ├── Decisions/            ← 决策记录（背景 → 选择 → 备选方案 → 后果，带 status 生命周期）
     ├── Lessons/              ← 踩坑与解法
     ├── Workflows/            ← 固定流程手册（步骤 → 验证：<可观测信号>）
-    ├── Projects/<项目名>/    ← 项目记忆：_overview.md + working/{journal,plan,completed}.md
+    ├── Projects/<项目名>/    ← _overview.md + _state.md + working 台账
+    │   └── working/          ← journal/YYYY-MM.md、plan.md、completed/YYYY-QX.md
     ├── Inbox/                ← 写入登记簿：AI 每次写完记忆留登记，待人工/自动审核
     └── Archive/              ← 季度归档
 ```
@@ -106,11 +108,11 @@ Memory/rule/
 | 脚本 | 拦什么 | 对应事故 |
 |---|---|---|
 | `memory_boot.py` | 会话启动无界、section 静默截断、缺少项目上下文 | 开场读取过多 |
-| `memory_query.py` | 展开整篇笔记、项目/scope 泄漏、默认返回 archived/superseded | 全库检索噪声过大 |
+| `memory_query.py` | 项目/scope 隔离、生命周期状态过滤、时间窗与月/季度分片范围检查 | 全库检索噪声过大 |
 | `todo_audit.py` | 完成信号残留、分组名与项目目录不映射、"已并入 Todo"假声明、`type`/`scope` 词表；Inbox 审核积压（只报告） | 声称已归档的条目静默挂起三天 |
 | `state_audit.py` | 活跃项目的 `_state.md` 缺失、仍是占位、过期或过长（默认只报告） | 状态卡建立后无人核实 |
 | `memory_review.py` | 长期记忆缺状态、待复核，或易漂移断言缺/过时效（默认只报告） | 有字段但无人复核 |
-| `encoding_guard.py` | 非 UTF-8 / BOM 残留、AI 转义吞字留下的裸控制符（让 grep 集体失明的隐形杀手） | `\v` 被当转义吃掉，坏指针存活 7 天 |
+| `encoding_guard.py` | 非 UTF-8 / BOM 残留、AI 转义吞字留下的裸控制符（避免读取器漏读或解析受损） | `\v` 被当转义吃掉，坏指针存活 7 天 |
 | `sync_memory_instructions.py` | 多工具指令位与真源的漂移、真源裸控制符、`<项目名>` 声明位伪值 | 部署链"只有部署没有校验" |
 
 设计取舍（为什么有的检查是门禁、有的只是报告）与全部事故复盘，见 [docs/03-核心设计原则.md](../docs/03-核心设计原则.md) 与 [docs/04-演化史.md](../docs/04-演化史-门禁背后的事故.md)。

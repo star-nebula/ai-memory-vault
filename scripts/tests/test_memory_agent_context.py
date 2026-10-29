@@ -18,7 +18,7 @@ sys.path.insert(0, str(SCRIPTS))
 import memory_boot
 import memory_query
 from memory_boot import build_boot_pack
-from memory_common import InvalidProjectError, detect_project, extract_todo_section
+from memory_common import DEFAULT_BUDGET, InvalidProjectError, detect_project, extract_todo_section, find_memory_dir
 from memory_query import search_memory
 
 
@@ -73,6 +73,17 @@ class MemoryAgentContextTest(unittest.TestCase):
         code_root.mkdir(parents=True)
         (code_root / "AGENTS.md").write_text("**当前项目名：`demo`**\n", encoding="utf-8")
         self.assertEqual(detect_project(self.memory, cwd=str(code_root)), "demo")
+
+    def test_memory_discovery_prefers_root_memory_over_nested_vault_copy(self):
+        workspace = self.root / "discovery"
+        primary = workspace / "Memory"
+        nested = workspace / "vault" / "Memory"
+        primary.mkdir(parents=True)
+        nested.mkdir(parents=True)
+        (primary / "BOOT.md").write_text("primary", encoding="utf-8")
+        (nested / "BOOT.md").write_text("nested", encoding="utf-8")
+
+        self.assertEqual(find_memory_dir(start=str(workspace)), primary.resolve())
 
     def test_project_detection_uses_code_root_not_group(self):
         code_root = self.root / "code" / "Projects" / "personal" / "demo"
@@ -158,6 +169,24 @@ class MemoryAgentContextTest(unittest.TestCase):
         total_cut = build_boot_pack(self.memory, project="demo", budget=1200)
         self.assertTrue(total_cut["section_truncated"])
         self.assertTrue(total_cut["budget_truncated"])
+
+    def test_boot_budget_covers_all_section_caps_and_overhead(self):
+        (self.memory / "BOOT.md").write_text("B" * 3000, encoding="utf-8")
+        (self.project / "_overview.md").write_text("O" * 3000, encoding="utf-8")
+        (self.project / "_state.md").write_text(
+            "---\ntype: project-fact\nstatus: active\nupdated: 2026-10-23\n---\n"
+            + "S" * 1500,
+            encoding="utf-8",
+        )
+        (self.memory / "Todo.md").write_text(
+            "# Todo\n\n## demo\n\n" + "T" * 1800,
+            encoding="utf-8",
+        )
+
+        pack = build_boot_pack(self.memory, project="demo", budget=DEFAULT_BUDGET)
+
+        self.assertTrue(pack["section_truncated"])
+        self.assertFalse(pack["budget_truncated"])
 
     def test_cost_gate_passes_content_debt_and_content_check_fails(self):
         fixture = self.root / "gate-fixture"
@@ -284,6 +313,84 @@ class MemoryAgentContextTest(unittest.TestCase):
         )
         self.assertEqual(result["matches"][0]["date_from"], "2026-10-01")
         self.assertEqual(result["matches"][0]["date_to"], "2026-10-31")
+
+    def test_query_skips_malformed_shard_dates_instead_of_aborting(self):
+        working = self.project / "working" / "journal"
+        working.mkdir(parents=True)
+        (working / "2026-13.md").write_text(
+            "---\ntype: journal\n---\n# bad shard\n\nmalformed date note\n",
+            encoding="utf-8",
+        )
+        (working / "2026-10.md").write_text(
+            "---\ntype: journal\n---\n## 2026-10-24\n\nvalid shard result\n",
+            encoding="utf-8",
+        )
+        completed = self.project / "working" / "completed"
+        completed.mkdir(parents=True)
+        (completed / "0000-Q1.md").write_text(
+            "---\ntype: completed\n---\n# malformed shard result\n",
+            encoding="utf-8",
+        )
+
+        result = search_memory(
+            self.memory,
+            "shard result",
+            project="demo",
+            include_history=True,
+            since=date(2026, 10, 1),
+        )
+
+        self.assertEqual(
+            [match["path"] for match in result["matches"]],
+            ["Projects/demo/working/journal/2026-10.md"],
+        )
+
+    def test_all_projects_cli_overrides_detected_project(self):
+        code_root = self.root / "code" / "demo"
+        code_root.mkdir(parents=True)
+        (code_root / "AGENTS.md").write_text("**当前项目名：`demo`**\n", encoding="utf-8")
+        (self.other / "cross-project.md").write_text(
+            "---\ntype: project-fact\nstatus: active\n---\n"
+            "# 跨项目查询目标\n\nneedle-across-projects\n",
+            encoding="utf-8",
+        )
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPTS / "memory_query.py"),
+                "needle-across-projects",
+                "--memory-dir",
+                str(self.memory),
+                "--cwd",
+                str(code_root),
+                "--all-projects",
+                "--json",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertIn(
+            "Projects/other/cross-project.md",
+            {match["path"] for match in payload["matches"]},
+        )
+
+    def test_short_multiword_query_matches_nonadjacent_tokens(self):
+        (self.memory / "Lessons" / "short-tokens.md").write_text(
+            "---\ntype: lesson\nscope: global\nstatus: active\n---\n"
+            "# Short tokens\n\nAI is useful, and ML is one application.\n",
+            encoding="utf-8",
+        )
+
+        result = search_memory(self.memory, "ai ml")
+
+        self.assertIn(
+            "Lessons/short-tokens.md",
+            {match["path"] for match in result["matches"]},
+        )
 
     def test_query_filters_by_layer(self):
         (self.memory / "Decisions" / "layer-decision.md").write_text(

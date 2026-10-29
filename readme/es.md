@@ -59,7 +59,7 @@ python scripts/encoding_guard.py <ruta>  # puerta: codificación + caracteres de
 | Script | Qué bloquea |
 |---|---|
 | `memory_boot.py` | Inicio sin límite · truncado silencioso de secciones · falta de contexto del proyecto |
-| `memory_query.py` | Expansión de notas completas · fuga de project/scope · archived/superseded incluidos por defecto |
+| `memory_query.py` | Aislamiento por proyecto/scope · filtrado de ciclo de vida · ventanas de fecha y límites de fragmentos |
 | `state_audit.py` | `_state.md` de proyectos activos ausente, provisional, obsoleto o demasiado largo (solo informe por defecto) |
 | `memory_review.py` | Falta de status/review o afirmaciones volátiles sin verificar/vencidas en memoria larga (solo informe por defecto) |
 | `todo_audit.py` | Tareas "hechas" pero no movidas · grupos sin directorio de proyecto · falsas afirmaciones de "ya movido a Todo" · tipos fuera de vocabulario · acumulación de auditoría de Inbox (solo informe) |

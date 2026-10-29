@@ -59,7 +59,7 @@ python scripts/encoding_guard.py <caminho> # porteira: codificação + caractere
 | Script | O que bloqueia |
 |---|---|
 | `memory_boot.py` | Inicialização sem limite · truncamento silencioso · falta de contexto do projeto |
-| `memory_query.py` | Expansão de notas inteiras · vazamento de project/scope · archived/superseded incluídos por padrão |
+| `memory_query.py` | Isolamento de projeto/scope · filtro do ciclo de vida · janelas de data e limites dos fragmentos |
 | `state_audit.py` | `_state.md` de projetos ativos ausente, provisório, desatualizado ou longo demais (apenas relatório por padrão) |
 | `memory_review.py` | Status ausente/review ou afirmações voláteis não verificadas/vencidas na memória longa (apenas relatório por padrão) |
 | `todo_audit.py` | Tarefas "feitas" mas não movidas · grupos sem diretório de projeto · falsas alegações de "já movido ao Todo" · tipos fora do vocabulário · acúmulo de auditoria do Inbox (apenas relatório) |

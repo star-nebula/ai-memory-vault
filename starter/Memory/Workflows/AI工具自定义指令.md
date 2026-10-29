@@ -2,7 +2,9 @@
 type: workflow
 scope: global
 created: 2026-10-02
-updated: 2026-10-02
+status: active
+updated: 2026-10-29
+verified_at: 2026-10-29
 tags: [分发钩子, 自定义指令, 记忆库, AI工具接入]
 ---
 

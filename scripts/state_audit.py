@@ -20,6 +20,7 @@ from memory_common import (
     normalize_group_title,
     parse_iso_date,
     read_text,
+    SECTION_LIMITS,
 )
 
 
@@ -65,7 +66,7 @@ def scan_states(
             row["placeholder"] = any(marker in text for marker in STATE_PLACEHOLDER_MARKERS)
             row["stale"] = bool(updated and (today - updated).days > max_age_days)
             row["missing_updated"] = updated is None
-            row["too_large"] = len(text) > 1000
+            row["too_large"] = len(text) > SECTION_LIMITS["state"]
         else:
             row["chars"] = 0
             row["updated"] = ""
@@ -94,7 +95,7 @@ def render(result: Dict[str, object], max_age_days: int) -> str:
         f"- placeholder state: {len(result['placeholder'])}",
         f"- stale (> {max_age_days} days): {len(result['stale'])}",
         f"- missing/invalid updated: {len(result['missing_updated'])}",
-        f"- too large (> 1000 chars): {len(result['too_large'])}",
+        "- too large (> %d chars): %d" % (SECTION_LIMITS["state"], len(result["too_large"])),
         "",
         "| project | exists | chars | updated | placeholder | stale | too large |",
         "|---|---:|---:|---|---:|---:|---:|",
@@ -133,7 +134,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     if args.out:
-        Path(args.out).write_text(text, encoding="utf-8")
+        output = Path(args.out)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text, encoding="utf-8")
         print(f"report: {args.out}")
     else:
         print(text, end="")

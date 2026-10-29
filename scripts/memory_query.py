@@ -82,11 +82,17 @@ def _note_date_bounds(
 
     month = re.fullmatch(r"(\d{4})-(\d{2})\.md", path.name)
     if month and path.parent.name == "journal":
-        return _month_bounds(int(month.group(1)), int(month.group(2)))
+        try:
+            return _month_bounds(int(month.group(1)), int(month.group(2)))
+        except ValueError:
+            return None
 
     quarter = re.fullmatch(r"(\d{4})-Q([1-4])\.md", path.name)
     if quarter and path.parent.name == "completed":
-        return _quarter_bounds(int(quarter.group(1)), int(quarter.group(2)))
+        try:
+            return _quarter_bounds(int(quarter.group(1)), int(quarter.group(2)))
+        except ValueError:
+            return None
 
     created = _parse_date(frontmatter.get("created", ""))
     updated = _parse_date(frontmatter.get("updated", ""))
@@ -107,7 +113,10 @@ def _shard_date_bounds(path: Path) -> Optional[tuple[date, date]]:
             return None
     quarter = re.fullmatch(r"(\d{4})-Q([1-4])\.md", path.name)
     if quarter and path.parent.name == "completed":
-        return _quarter_bounds(int(quarter.group(1)), int(quarter.group(2)))
+        try:
+            return _quarter_bounds(int(quarter.group(1)), int(quarter.group(2)))
+        except ValueError:
+            return None
     return None
 
 
@@ -154,7 +163,7 @@ def _iter_notes(
         if rel_parts[0] == "Projects":
             if not project and not all_projects:
                 continue
-            if project and (len(rel_parts) < 2 or rel_parts[1].casefold() != project.casefold()):
+            if project and (len(rel_parts) < 2 or rel_parts[1] != project):
                 continue
         yield path, rel_parts
 
@@ -221,7 +230,8 @@ def search_memory(
     normalized_query = normalize_search_text(query)
     strong_terms = [
         term for term in terms
-        if len(term) >= 3 or (not term.isascii() and len(term) >= 2)
+        if (term != normalized_query or len(terms) == 1)
+        and (len(term) >= 3 or (not term.isascii() and len(term) >= 2))
     ]
     type_filter = {t.strip().lower() for t in types or [] if t.strip()}
     layer_filter = {layer.strip().lower() for layer in layers or [] if layer.strip()}
@@ -257,7 +267,7 @@ def search_memory(
         scope = frontmatter.get("scope", "")
         in_project_tree = len(rel_parts) >= 2 and rel_parts[0] == "Projects"
         if project:
-            if in_project_tree and rel_parts[1].casefold() != project.casefold():
+            if in_project_tree and rel_parts[1] != project:
                 continue
             if not in_project_tree and scope.casefold() not in (project.casefold(), "global"):
                 continue
@@ -366,11 +376,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--memory-dir", help="explicit Memory/ directory")
     parser.add_argument("--cwd", help="working directory used for project detection")
     parser.add_argument("--project", help="project scope (single directory name)")
-    parser.add_argument("--all-projects", action="store_true", help="allow project-tree search when no project is detected")
+    parser.add_argument("--all-projects", action="store_true", help="search project trees across all projects unless --project is explicit")
     parser.add_argument("--types", help="comma-separated frontmatter types")
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
     parser.add_argument("--budget", type=int, default=DEFAULT_BUDGET, help="maximum characters in the text field")
-    parser.add_argument("--include-inactive", action="store_true", help="include archived/superseded notes")
+    parser.add_argument("--include-inactive", action="store_true", help="include archived/superseded/rejected notes")
     parser.add_argument("--include-history", action="store_true", help="include Inbox/Archive/working files")
     parser.add_argument("--since", help="include notes intersecting YYYY-MM-DD or later")
     parser.add_argument("--until", help="include notes intersecting YYYY-MM-DD or earlier")
@@ -395,7 +405,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         if since and until and since > until:
             print("since must not be later than until", file=sys.stderr)
             return 2
-        project = args.project or detect_project(memory_dir, cwd=args.cwd)
+        project = args.project
+        if not project and not args.all_projects:
+            project = detect_project(memory_dir, cwd=args.cwd)
         types = args.types.split(",") if args.types else None
         layers = args.layers.split(",") if args.layers else None
         result = search_memory(

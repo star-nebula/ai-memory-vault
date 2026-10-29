@@ -6,7 +6,7 @@
 
 - 普通问答 / 单轮任务：不默认扫描记忆库；需要用户偏好时只读 `Memory/BOOT.md`。
 - 项目任务：运行 `python scripts/memory_boot.py --cwd .`。它只返回全局热记忆、当前项目 `_overview.md`、`_state.md` 与 Todo 切片。
-- 查原因 / 历史 / 踩坑：运行 `python scripts/memory_query.py "关键词" --cwd .`；默认返回 top-k 片段，排除 archived/superseded。
+- 查原因 / 历史 / 踩坑：运行 `python scripts/memory_query.py "关键词" --cwd .`；默认返回 top-k 片段，排除 archived/superseded/rejected。
 - 不要预扫记忆库；启动只取上面的有界包，更多背景按需检索。
 - 同一会话只加载一次启动包；除非用户要求刷新或记忆已写入，不要反复读取同一文件。
 

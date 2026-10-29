@@ -139,6 +139,13 @@ class TodoAuditShardTest(unittest.TestCase):
             result = todo_audit.scan_scope_vocab()
         self.assertEqual(result["bad"], [])
 
+    def test_boot_health_reports_projects_missing_overview(self):
+        (self.projects / "demo").mkdir(parents=True, exist_ok=True)
+        with patch.object(todo_audit, "PROJECTS_DIR", self.projects), \
+                patch.object(todo_audit, "MEMORY_DIR", self.memory):
+            result = todo_audit.scan_boot_health(["demo"])
+        self.assertEqual(result["missing_overview"], ["demo"])
+
 
 if __name__ == "__main__":
     unittest.main()

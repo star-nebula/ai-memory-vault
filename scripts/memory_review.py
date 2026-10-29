@@ -217,7 +217,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     if args.out:
-        Path(args.out).write_text(text, encoding="utf-8")
+        output = Path(args.out)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text, encoding="utf-8")
         print(f"report: {args.out}")
     else:
         print(text, end="")

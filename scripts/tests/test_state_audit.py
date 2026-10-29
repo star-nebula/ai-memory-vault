@@ -119,6 +119,21 @@ class StateAuditTest(unittest.TestCase):
         self.assertEqual(payload["scanned"], 4)
         self.assertEqual(strict.returncode, 1, strict.stderr)
 
+    def test_out_creates_missing_parent_directory(self):
+        report_path = Path(self.temp.name) / "reports" / "state.txt"
+        env = os.environ.copy()
+        env["AI_MEMORY_DIR"] = str(self.memory)
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPTS / "state_audit.py"), "--out", str(report_path)],
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertTrue(report_path.is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -72,10 +72,16 @@ class SyncProjectHookTest(unittest.TestCase):
         self.assertEqual(self.target.read_text(encoding="utf-8"), handwritten)
 
     def test_hook_text_uses_absolute_paths(self):
-        text = sync.hook_text("demo", "body")
+        text = sync.hook_text(
+            "demo",
+            "python scripts/memory_boot.py --cwd .\n"
+            "python scripts/memory_query.py \"keyword\" --cwd .",
+        )
         self.assertIn(sync.GENERATED_MARKER, text)
         self.assertIn(str(sync.SCRIPT_DIR / "memory_boot.py"), text)
         self.assertIn(str(sync.MEMORY_ROOT / "Projects" / "demo" / "_overview.md"), text)
+        self.assertNotIn("python scripts/memory_boot.py", text)
+        self.assertNotIn("python scripts/memory_query.py", text)
         self.assertNotIn("Memory\\Memory\\", text)
 
     def test_backup_names_include_target_hash(self):
@@ -103,6 +109,39 @@ class SyncProjectHookTest(unittest.TestCase):
             sync.roots_from_overview("demo"),
             str(self.target_dir),
         )
+
+    def test_overview_root_rejects_prefix_sibling_and_parent_traversal(self):
+        sibling = Path(str(self.code_root) + "-outside") / "group" / "demo"
+        sibling.mkdir(parents=True)
+        overview = self.memory / "Projects" / "demo" / "_overview.md"
+
+        for path in (sibling, self.code_root / ".." / "outside" / "demo"):
+            path.mkdir(parents=True, exist_ok=True)
+            overview.write_text(f"代码根：`{path}`\n", encoding="utf-8")
+            self.assertIsNone(sync.roots_from_overview("demo"), str(path))
+
+    def test_code_root_check_rejects_symlinks_that_escape_root(self):
+        outside = self.root / "outside" / "demo"
+        outside.mkdir(parents=True)
+        link = self.code_root / "group" / "linked-demo"
+        try:
+            link.symlink_to(outside, target_is_directory=True)
+        except OSError as exc:
+            self.skipTest("directory symlinks unavailable: %s" % exc)
+        self.assertFalse(sync._is_within_code_root(link))
+
+    def test_deploy_does_not_write_through_external_hook_symlink(self):
+        outside = self.root / "outside" / "AGENTS.md"
+        outside.parent.mkdir(parents=True)
+        outside.write_text("external content\n", encoding="utf-8")
+        self.target.unlink()
+        try:
+            self.target.symlink_to(outside)
+        except OSError as exc:
+            self.skipTest("file symlinks unavailable: %s" % exc)
+
+        self.assertEqual(sync.deploy_projects(check_only=False), 1)
+        self.assertEqual(outside.read_text(encoding="utf-8"), "external content\n")
 
 
 if __name__ == "__main__":

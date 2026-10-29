@@ -59,7 +59,7 @@ python scripts/encoding_guard.py <path>  # 인코딩 + 제어 문자 게이트
 | 스크립트 | 잡아내는 것 |
 |---|---|
 | `memory_boot.py` | 시작 컨텍스트 무제한 · section 암묵적 절단 · 프로젝트 문맥 누락 |
-| `memory_query.py` | 전체 노트 확장 · project/scope 누출 · archived/superseded 기본 포함 |
+| `memory_query.py` | 프로젝트/scope 격리 · 상태 수명주기 필터링 · 날짜 범위 및 분할 파일 검사 |
 | `state_audit.py` | 활성 프로젝트의 `_state.md` 누락 · 자리표시자 · 오래된 갱신일 · 과대 문서(기본은 보고만) |
 | `memory_review.py` | 장기 기억의 status 누락 · review · 변동성 주장의 미검증/기한 경과(기본은 보고만) |
 | `todo_audit.py` | 완료 표시만 하고 이동하지 않은 항목 · 그룹명↔프로젝트 dir 불일치 · "Todo에 옮겼다"는 허위 보고 · 어휘 밖 type · Inbox 감사 적체(보고만) |

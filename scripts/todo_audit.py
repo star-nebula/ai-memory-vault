@@ -97,15 +97,15 @@ def _find_memory_dir() -> Path:
     for start in (Path.cwd(), Path(__file__).resolve()):
         for p in [start, *start.parents]:
             cand = p / "Memory"
+            if cand.is_dir() and any(
+                (cand / marker).exists() for marker in ("BOOT.md", "Todo.md", "rule")
+            ):
+                return cand
             nested = p / "vault" / "Memory"
             if nested.is_dir() and any(
                 (nested / marker).exists() for marker in ("BOOT.md", "Todo.md", "rule")
             ):
                 return nested
-            if cand.is_dir() and any(
-                (cand / marker).exists() for marker in ("BOOT.md", "Todo.md", "rule")
-            ):
-                return cand
     return Path.cwd() / "Memory"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -215,6 +215,11 @@ def scan_boot_health(active_projects) -> dict:
     if PROJECTS_DIR.is_dir():
         for project in sorted(p for p in PROJECTS_DIR.iterdir() if p.is_dir()):
             if not (project / "_overview.md").is_file():
+                rows.append({
+                    "project": project.name,
+                    "active": project.name in active_projects,
+                    "missing_overview": True,
+                })
                 continue
             try:
                 pack = build_boot_pack(MEMORY_DIR, project=project.name, budget=BOOT_DEFAULT_BUDGET)
@@ -240,6 +245,7 @@ def scan_boot_health(active_projects) -> dict:
         "max_assembled_chars": max((r.get("assembled_chars", 0) for r in rows), default=0),
         "hard": hard,
         "section_debt": section_debt,
+        "missing_overview": [r["project"] for r in rows if r.get("missing_overview")],
         "rows": rows,
     }
 
@@ -462,7 +468,7 @@ TRAILING_PAREN = re.compile(r"[（(][^）)]*[）)]\s*$")
 
 
 def read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8-sig")
+    return path.read_text(encoding="utf-8-sig", errors="replace")
 
 
 def norm_group(title: str) -> str:
@@ -735,7 +741,7 @@ def render(r: dict) -> str:
                 out.append("  通过：没有项目触发最终预算截断。")
             active_debt = len([row for row in bh["section_debt"] if row.get("active")])
             total_debt = len(bh["section_debt"])
-            out.append(f"- 内容债报告：overview 源超限 {len(c['overview_offenders'])} / state 源超限 {len(c['state_offenders'])} / section 截断 {total_debt}（活跃 {active_debt}）/ 缺 state {len(r.get('missing_state') or [])}")
+            out.append(f"- 内容债报告：overview 源超限 {len(c['overview_offenders'])} / state 源超限 {len(c['state_offenders'])} / section 截断 {total_debt}（活跃 {active_debt}）/ 缺 overview {len(bh.get('missing_overview') or [])} / 缺 state {len(r.get('missing_state') or [])}")
             out.append("  > 内容债不阻断 `--cost-check`；需要严格清零时用 `--content-check`。")
         out.append(f"- 近似诊断（非门禁）：BOOT + 最大 overview + 最大 state = {c['boot_approx_chars']} 字符")
         out.append("")
@@ -889,7 +895,7 @@ def main() -> int:
     ap.add_argument("-o", "--out", default=str(DEFAULT_OUT), help="报告输出路径")
     ap.add_argument("--check", action="store_true", help="门禁模式：有违规退出码 1")
     ap.add_argument("--cost-check", action="store_true", help="硬门禁：实际启动包 / BOOT 源政策超标即退出码 1")
-    ap.add_argument("--content-check", action="store_true", help="严格内容债门禁：overview/state/section 截断/缺 state 任一存在即退出码 1")
+    ap.add_argument("--content-check", action="store_true", help="严格内容债门禁：overview/state 超限、section 截断、缺 overview/state 任一存在即退出码 1")
     ap.add_argument("--scope-check", action="store_true", help="门禁模式：`scope` 非法取值 / 冗余出现即退出码 1（季度维护用）")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     ap.add_argument("--quiet", action="store_true", help="不往 stdout 打印")
@@ -939,6 +945,7 @@ def main() -> int:
     content_violations = (
         len(cost.get("overview_offenders") or [])
         + len(cost.get("state_offenders") or [])
+        + len(boot_health.get("missing_overview") or [])
         + len(result.get("missing_state") or [])
         + len(boot_health.get("section_debt") or [])
     )
@@ -999,7 +1006,7 @@ def main() -> int:
         return 1
 
     if args.content_check and content_violations:
-        print(f"[!] 内容债 {content_violations} 项未清零 —— overview/state/section 截断/缺 state；本模式用于季度或切换验收", file=sys.stderr)
+        print(f"[!] 内容债 {content_violations} 项未清零 —— overview/state 超限、section 截断或缺 overview/state；本模式用于季度或切换验收", file=sys.stderr)
         return 1
 
     if args.scope_check and scope_violations:
