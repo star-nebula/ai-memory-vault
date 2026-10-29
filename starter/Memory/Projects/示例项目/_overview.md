@@ -1,9 +1,10 @@
 ---
 type: project-fact
+status: active
 created: 2026-10-02
-updated: 2026-10-02
+updated: 2026-10-29
 tags: [示例, 项目概况]
-summary: 示例项目：演示项目层三件套结构与 Todo 分组对应关系的占位项目，接入后改名使用。
+summary: 示例项目：演示项目层 `_overview` + `_state` + working 台账与 Todo 分组对应关系的占位项目，接入后改名使用。
 ---
 
 # 示例项目 · 项目概况
@@ -14,8 +15,8 @@ summary: 示例项目：演示项目层三件套结构与 Todo 分组对应关�
 
 ## 关键路径
 
-- `working/journal.md`：过程流水（时间倒序，每日一个 `## YYYY-MM-DD` 小节，暂存层）
-- `working/completed.md`：结案归档（「结案 = 移走」的落点，带日期、结果、原因与来源）
+- `working/journal/YYYY-MM.md`：过程流水（时间倒序，每日一个 `## YYYY-MM-DD` 小节，暂存层）
+- `working/completed/YYYY-QX.md`：结案归档（「结案 = 移走」的落点，带日期、结果、原因与来源）
 - `working/plan.md`：计划（需要时创建）
 
 ## 状态

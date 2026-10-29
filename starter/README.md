@@ -8,25 +8,28 @@
 cp -r starter/* scripts /path/to/your-vault/
 ```
 
-`scripts/` 必须一起拷入——门禁脚本不在 `starter/` 里。拷完即用：AI 工具进入工作区自动读到根 `AGENTS.md`，按 `Memory/_index.md` 路由读写记忆。规则文本全部按**相对路径**表述，不需要改任何一行。
+`scripts/` 必须一起拷入——门禁脚本不在 `starter/` 里。拷完即用：AI 工具进入工作区自动读到根 `AGENTS.md`，用 `memory_boot.py` 按项目和预算加载记忆；`memory_query.py` 负责有界检索。规则文本全部按**相对路径**表述，不需要改任何一行。
 
-## 两个可选动作（不改也不影响运行）
+## 可选动作（不改也不影响运行）
 
-1. **生成各内容层索引**（派生物；`Decisions/_index.md` 手工维护、不在此列）：`python scripts/mem_index.py --write`——之后新增笔记重跑即可，手工只润色"一句话定位"。
-2. **接入 AI 工具的用户级全局指令**：把 `Memory/Workflows/AI工具自定义指令-完整版.md` 按 `Memory/Workflows/AI工具自定义指令.md` 的落点对照表分发到你的各工具。默认文案相对路径、即贴即用；仅当需要跨工作区全局访问时，才把真源首句替换为一次记忆库绝对路径，再用 `scripts/sync_memory_instructions.py` 一键分发。
+**接入 AI 工具的用户级全局指令**：把 `Memory/Workflows/AI工具自定义指令-完整版.md` 按 `Memory/Workflows/AI工具自定义指令.md` 的落点对照表分发到你的各工具。默认文案相对路径、即贴即用；仅当需要跨工作区全局访问时，才把真源首句替换为一次记忆库绝对路径，再用 `scripts/sync_memory_instructions.py` 一键分发。
 
 ## 自检
 
 ```bash
-python scripts/mem_index.py --check     # 应输出 OK：无漂移
-python scripts/todo_audit.py --check    # 应输出 [ok] 干净
+python scripts/memory_boot.py --cwd . --json          # 启动包与字符预算
+python scripts/memory_query.py "验证" --cwd . --json   # 有界检索
+python scripts/todo_audit.py --check                  # 应输出 [ok] 干净
+python scripts/state_audit.py                         # 项目状态健康报告
+python scripts/memory_review.py                       # 长期记忆生命周期/时效报告
+python scripts/encoding_guard.py Memory --no-ctrl     # 编码检查
 ```
 
 脚本自动探测记忆库位置（从当前目录向上找 `Memory/`）；在任何位置运行时也可 `export AI_MEMORY_DIR=/path/to/your-vault/Memory` 显式指定。
 
 ## 示例项目
 
-`Memory/Projects/示例项目/` 是一个占位项目，演示项目层的三件套结构（`_overview.md` + `working/{journal,completed}.md`）与 `Todo.md` 分组的对应关系。改名为你的第一个真实项目即可（改名后同步改 `Todo.md` 的 `## 分组` 标题——分组名必须等于项目目录名，门禁会查）。
+`Memory/Projects/示例项目/` 是占位项目，演示 `_overview.md` + `_state.md` + `working/journal/YYYY-MM.md` + `working/completed/YYYY-QX.md` 与 `Todo.md` 分组的对应关系。改名为你的第一个真实项目即可（改名后同步改 `Todo.md` 的 `## 分组` 标题——分组名必须等于项目目录名，门禁会查）。
 
 ## 安全提示
 

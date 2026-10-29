@@ -3,7 +3,7 @@
 [English](../README.md) | [简体中文](zh-CN.md) | [日本語](ja.md) | [한국어](ko.md) | [Español](es.md) | [Português](pt-BR.md) | [Русский](ru.md)
 
 > Claude Code / Codex / Cursor / Cline / Gemini CLI / Trae / Qoder / ZCode など、**すべての AI ツールで同じ記憶を共有**するためのディレクトリ構造 + ルール + ゲートスクリプト。
-> **中核概念：ほぼゼロ設定——ローカルには何もデプロイしない。** 中身は Markdown ファイルと標準ライブラリだけで動く Python スクリプト 4 本。純粋な Markdown ディレクトリにコピーするだけで「デプロイ」完了。依存・サービス・ビルド・プレースホルダ置換は一切なし。ツールはワークスペース直下の `AGENTS.md` を自動で読み、スクリプトは記憶庫の場所を自動検出します。
+> **中核概念：ほぼゼロ設定——ローカルには何もデプロイしない。** 中身は Markdown ファイルと標準ライブラリだけで動く Python スクリプト 8 本。純粋な Markdown ディレクトリにコピーするだけで「デプロイ」完了。依存・サービス・ビルド・プレースホルダ置換は一切なし。ツールはワークスペース直下の `AGENTS.md` を自動で読み、スクリプトは記憶庫の場所を自動検出します。
 >
 > **Obsidian に非依存**：記憶庫の中身はただの Markdown ディレクトリ（`Memory/`）。ファイルを読み書きできるどんな Agent・どんな Markdown エディタでも使えます。作者自身は Obsidian で閲覧しています（Templater / Dataview は任意の拡張で、依存ではありません）。
 
@@ -13,15 +13,15 @@
 |---|---|
 | [docs/](../docs/) | **設計思想**：なぜこう設計したか、全ゲートの背後にある実事故（中国語） |
 | [starter/](../starter/) | **コピーしてすぐ使える骨格**：ディレクトリ構造 + ルール一式 + サンプルプロジェクト |
-| [scripts/](../scripts/) | **ゲートスクリプト**：インデックス生成 / ToDo 監査 / エンコーディング検査 / 指令同期 |
+| [scripts/](../scripts/) | **Agent コマンドとゲート**：起動パック / 有界検索 / ToDo 監査 / state・lifecycle 検査 / エンコーディング / 指令同期 |
 
 ## 核心理念（七か条・要約）
 
 1. **ほぼゼロ設定** — Markdown ファイル + 標準ライブラリのみのスクリプト。ディレクトリにコピーすることがインストールの全部。
 2. **記憶の置き場所は一つ** — ツール側設定には「ポインタ + 短いフック」のみ。記憶の中身は書かない。
-3. **構造化された階層** — `Preferences` / `Plans` / `Decisions` / `Lessons` / `Workflows` / `Projects` ＋ `Todo.md`・`Inbox/`・`Archive/`。
-4. **インデックスは派生物** — `Decisions/` を除く各内容層を `mem_index.py` が生成。人は一行紹介を磨くだけで、再生成しても消えない。`Decisions/_index.md` は 1 行が複数決定を覆えるため手管理。
-5. **クローズ = 移動** — 完了・中止した ToDo は `working/completed.md` へ（日付・結果・理由・出所付きで）移し、Todo から削除。その場で ✅ や恒久的な取り消し線を残さない。
+3. **構造化された階層** — `Preferences` / `Decisions` / `Lessons` / `Workflows` / `Projects` ＋ `Todo.md`・`Inbox/`・`Archive/`。計画は各プロジェクトの `working/plan.md` に置きます。
+4. **既定は最小コンテキスト** — Agent は記憶ツリー全体を閲覧しない。`memory_boot.py` は有界の起動パックを生成し、`memory_query.py` は必要なときだけ順位付き断片を返す。
+5. **クローズ = 移動** — 完了・中止した ToDo は `working/completed/YYYY-QX.md` へ（日付・結果・理由・出所付きで）移し、Todo から削除。その場で ✅ や恒久的な取り消し線を残さない。
 6. **ゲートのある工程だけ劣化しない** — 全ゲートには実事故の背書があります（[docs/04](../docs/04-演化史-门禁背后的事故.md)）。
 7. **プライバシーはガードで守る** — `.gitignore` ＋ `pre-commit` フックが `Memory/` 触りのコミットを拒否。
 
@@ -34,8 +34,8 @@ https://github.com/star-nebula/ai-memory-vault をクローン（できなけれ
 starter/ の中身をすべて私の記憶ライブラリのワークスペースルートにコピーしてください——
 既にノートライブラリがあればそのルートへ、なければ空ディレクトリを新規作成。
 あわせて scripts/ ディレクトリもそのワークスペースにコピーしてください（ゲートは starter/ の中にありません）。
-その後、そのディレクトリで python scripts/mem_index.py --write を実行してインデックスを生成。
-最後に、ワークスペースルートの AGENTS.md と Memory/_index.md を読み、
+その後 python scripts/memory_boot.py --cwd . --json と python scripts/memory_query.py "test" --json を実行。
+最後にワークスペースルートの AGENTS.md を読み、
 「いつ記憶を読み、どう書くか」を私に復唱してください。
 ```
 
@@ -48,8 +48,6 @@ cp -r starter/* scripts /path/to/your-vault/   # 唯一の「インストール�
 置換すべきプレースホルダも、インストールすべき依存もありません。任意の後続ステップ：
 
 ```bash
-python scripts/mem_index.py --write      # 各層インデックスを生成
-python scripts/mem_index.py --check      # インデックス漂移ゲート
 python scripts/todo_audit.py --check     # ToDo アーカイブゲート
 python scripts/encoding_guard.py <path>  # エンコーディング + 制御文字ゲート
 ```
@@ -60,7 +58,10 @@ python scripts/encoding_guard.py <path>  # エンコーディング + 制御文�
 
 | スクリプト | 拦むもの |
 |---|---|
-| `mem_index.py` | 手管理インデックスの漂移・索引セルの陳腐化・単一正本の曖昧性解消表/ポインタの破損・判断アンカーの不整合・読時鮮度プロトコルの欠落 |
+| `memory_boot.py` | 起動コンテキストの無制限化・section の暗黙切り捨て・プロジェクト文脈の欠落 |
+| `memory_query.py` | project/scope の分離・状態ライフサイクルの絞り込み・日付範囲と分割ファイルの検証 |
+| `state_audit.py` | アクティブプロジェクトの `_state.md` 欠落・プレースホルダー・古い更新日・過長（既定は報告のみ） |
+| `memory_review.py` | 長期記憶の status 欠落・review・易漂移断言の未検証/期限切れ（既定は報告のみ） |
 | `todo_audit.py` | 完了済みだが未移動の残骸・グループ名とプロジェクト dir の不一致・「Todo に移した」虚偽申告・語彙外 type・Inbox 監査の滞留（報告のみ） |
 | `encoding_guard.py` | 非 UTF-8 / BOM・AI のエスケープ食いによる裸制御文字（grep から見えなくなる地雷） |
 | `sync_memory_instructions.py` | ツール指令位と単一真源の漂移・真源の制御文字汚染・`<项目名>` 疑似値 |

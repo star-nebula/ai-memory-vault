@@ -21,7 +21,7 @@ sync_memory_instructions.py — 记忆库自定义指令「单一真源」同步
 用法：
     python sync_memory_instructions.py                  # 部署用户级各处（幂等可重跑）
     python sync_memory_instructions.py --check          # 只读比对（各部署位 + 项目级钩子），漂移退出码 1
-    python sync_memory_instructions.py --projects       # 部署项目级钩子（只新建，不覆盖）
+    python sync_memory_instructions.py --projects       # 新建/更新带自动生成标记的钩子；手写文件 KEEP
     python sync_memory_instructions.py --projects --check   # 只报告项目级钩子状态
 
 记忆库定位：环境变量 AI_MEMORY_DIR，或从当前目录向上探测 <根>/Memory。
@@ -33,8 +33,9 @@ sync_memory_instructions.py — 记忆库自定义指令「单一真源」同步
 
 声明位伪值门：五个入口文件（真源 / 分发手册 / `Memory/AGENTS.md` / `Memory/Rule.md` / 工作区根 `AGENTS.md`）
 里「当前项目名」后面不得出现 `<项目名>`。项目名只有运行时才知道，写死占位等于给 AI 一个假值；
-合法形态 = 指向 `Memory/_index.md` §七 的指针。`Projects/<项目名>/...` 这类路径模式不受影响。
+合法形态 = 由 `memory_boot.py` / `memory_query.py` 在运行时判定。`Projects/<项目名>/...` 这类路径模式不受影响。
 """
+import hashlib
 import io
 import json
 import os
@@ -72,10 +73,14 @@ DIR_SKIP = {
     ".git", ".github", ".qoder", ".trae", ".trae-cn", ".agent", ".workbuddy", ".claude",
     "node_modules", "__pycache__", ".venv", "venv", "dist", "build", "out",
     "snapshots", "vendor", "docs", "doc", "packages", "scripts", "website", "ui",
-    "test", "tests", "extensions", "data", "backup", "_out", "Archive",
+    "test", "tests", "extensions", "data", "backup", "_out", "Archive", "Memory",
 }
 MAX_DEPTH = 3
 MIN_DEPTH = 2
+ROOT_MARKERS = (
+    "代码根", "代码位置", "代码实体", "代码仓库", "仓库本体",
+    "项目位置", "项目根", "本地路径", "位置", "路径",
+)
 
 ALLOWED_CTRL = (0x09, 0x0A, 0x0D)
 
@@ -92,9 +97,14 @@ def _find_memory_dir() -> Path:
         for p in [start, *start.parents]:
             cand = p / "Memory"
             if cand.is_dir() and any(
-                (cand / marker).exists() for marker in ("Todo.md", "_index.md", "rule")
+                (cand / marker).exists() for marker in ("BOOT.md", "Todo.md", "rule")
             ):
                 return cand
+            nested = p / "vault" / "Memory"
+            if nested.is_dir() and any(
+                (nested / marker).exists() for marker in ("BOOT.md", "Todo.md", "rule")
+            ):
+                return nested
     return Path.cwd() / "Memory"
 
 
@@ -106,9 +116,12 @@ RULE_MD = MEMORY_ROOT / "Rule.md"
 VAULT_AGENTS = MEMORY_ROOT.parent / "AGENTS.md"
 MEMORY_PROJECTS = MEMORY_ROOT / "Projects"
 BAK_DIR = MEMORY_ROOT.parent / "backup"
+SCRIPT_DIR = Path(__file__).resolve().parent
 # 声明位：会写「当前项目名」的入口文件。它们的值只能是指针，不能是尖括号伪值。
 DECL_FILES = (CANON, MANUAL, MEM_AGENTS, RULE_MD, VAULT_AGENTS)
 PSEUDO_DECL = re.compile(r"当前项目名[^\n]{0,12}<项目名>")
+GENERATED_HEADER = "# 记忆库 · 项目级入口（自动生成，勿手改）"
+GENERATED_MARKER = "<!-- generated-by: memory-vault-project-hook -->"
 
 
 def bad_ctrl(text):
@@ -133,7 +146,8 @@ def backup_file(path):
     os.makedirs(BAK_DIR, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     base = os.path.basename(path)
-    bak = os.path.join(BAK_DIR, "%s.sync-bak-%s" % (base, stamp))
+    digest = hashlib.sha1(os.path.abspath(path).encode("utf-8")).hexdigest()[:8]
+    bak = os.path.join(BAK_DIR, "%s.%s.sync-bak-%s" % (base, digest, stamp))
     shutil.copyfile(path, bak)
     return bak
 
@@ -237,8 +251,7 @@ def check_decls():
     """声明位伪值检查：返回命中条数（0 = 干净）。
 
     「当前项目名：<项目名>」把只有运行时才知道的值写成了字面占位符，分发到各工具位后会被
-    读成空，于是「完成 = 移走」的目标目录当场不可解析。合法形态 = 指向 `Memory/_index.md` §七 的
-    指针；`Projects/<项目名>/...` 这类**路径模式**不带「当前项目名」前缀，不受本检查影响。
+    读成空，于是「完成 = 移走」的目标目录当场不可解析。合法形态 = 由 `memory_boot.py` / `memory_query.py` 在运行时判定；
     """
     hits = []
     for path in DECL_FILES:
@@ -248,7 +261,7 @@ def check_decls():
         t = path.read_text(encoding="utf-8", errors="replace")
         for i, line in enumerate(t.splitlines(), 1):
             if PSEUDO_DECL.search(line):
-                hits.append("[声明位伪值] %s:%d 「当前项目名」带着 <项目名>，改为指 `_index.md` §七"
+                hits.append("[声明位伪值] %s:%d 「当前项目名」带着 <项目名>，改为由运行时判定"
                             % (path.name, i))
     for h in hits:
         log(h)
@@ -265,7 +278,7 @@ def check(text):
     log("[OK]   真源无裸控制符")
     n = check_decls()
     if n:
-        log("[FATAL] 声明位伪值 %d 处 —— 项目名只能由运行时给出（判定三步见 `Memory/_index.md` §七）" % n)
+        log("[FATAL] 声明位伪值 %d 处 —— 项目名只能由运行时给出（由 `memory_boot.py` / `memory_query.py` 判定）" % n)
         return 1
     log("[声明位] %d 个入口文件（真源/手册/钩子/权威全文/工作区根）均无「当前项目名：<占位>」伪值" % len(DECL_FILES))
     if not TARGETS:
@@ -324,33 +337,50 @@ def roots_from_overview(name):
     ov = os.path.join(MEMORY_PROJECTS, name, "_overview.md")
     if not os.path.isfile(ov):
         return None
-    t = io.open(ov, encoding="utf-8", errors="replace").read()
+    with io.open(ov, encoding="utf-8", errors="replace") as f:
+        t = f.read()
     needle = CODE_ROOT
     found = []
     i = 0
     stop = set(" \t`|，。；、）)】<>\"'\n\r*")
-    while True:
-        k = t.find(needle, i)
-        if k < 0:
-            break
-        j = k
-        while j < len(t) and t[j] not in stop:
-            j += 1
-        cand = t[k:j].rstrip("\\.* ")
-        i = j
-        if os.path.isdir(cand):
-            found.append(os.path.normpath(cand))
+    for line in t.splitlines():
+        if not any(marker in line for marker in ROOT_MARKERS):
+            continue
+        i = 0
+        while True:
+            k = line.find(needle, i)
+            if k < 0:
+                break
+            j = k
+            while j < len(line) and line[j] not in stop:
+                j += 1
+            cand = line[k:j].rstrip("\\.* ")
+            i = j
+            if os.path.isdir(cand):
+                found.append(os.path.normpath(cand))
     uniq = sorted(set(found))
     if len(uniq) != 1:
         return None
     root = uniq[0]
+    if not _is_within_code_root(root):
+        return None
     # 深度门：代码根自身或某个「组」目录被 overview 顺带提到时不能当代码根
     # （钩子写进 CODE_ROOT 会作用于其下全部项目）。
     rel = os.path.relpath(root, CODE_ROOT)
-    parts = [p for p in rel.split(os.sep) if p and p != "."]
+    parts = [p for p in Path(rel).parts if p and p != "."]
     if not (MIN_DEPTH <= len(parts) <= MAX_DEPTH):
         return None
     return root
+
+
+def _is_within_code_root(root):
+    try:
+        code_root = os.path.realpath(CODE_ROOT)
+        resolved_root = os.path.realpath(root)
+        common = os.path.commonpath([code_root, resolved_root])
+        return os.path.normcase(common) == os.path.normcase(code_root)
+    except (OSError, ValueError):
+        return False
 
 
 def project_roots():
@@ -363,15 +393,20 @@ def project_roots():
     if not os.path.isdir(CODE_ROOT) or not os.path.isdir(MEMORY_PROJECTS):
         return {}, []
     index = {}
-    base = os.path.abspath(CODE_ROOT).rstrip("\\")
-    base_depth = base.count("\\")
+    base = Path(CODE_ROOT).resolve()
     for dirpath, dirnames, _ in os.walk(CODE_ROOT):
         dirnames[:] = [d for d in dirnames if d not in DIR_SKIP and not d.startswith(".")]
-        depth = os.path.abspath(dirpath).rstrip("\\").count("\\") - base_depth
+        try:
+            depth = len(Path(dirpath).resolve().relative_to(base).parts)
+        except ValueError:
+            dirnames[:] = []
+            continue
         for d in dirnames:
             if depth + 1 < MIN_DEPTH or depth + 1 > MAX_DEPTH:
                 continue
-            index.setdefault(norm_name(d), []).append(os.path.join(dirpath, d))
+            candidate = os.path.join(dirpath, d)
+            if _is_within_code_root(candidate):
+                index.setdefault(norm_name(d), []).append(candidate)
         if depth + 1 >= MAX_DEPTH:
             dirnames[:] = []
     out, unresolved = {}, []
@@ -379,7 +414,7 @@ def project_roots():
         if not os.path.isdir(os.path.join(MEMORY_PROJECTS, name)):
             continue
         hits = index.get(norm_name(name), [])
-        if len(hits) == 1:
+        if len(hits) == 1 and hits[0] not in out.values():
             out[name] = hits[0]
             continue
         declared = roots_from_overview(name)
@@ -391,9 +426,19 @@ def project_roots():
 
 
 def hook_text(project, body):
-    ov = os.path.join("Memory", "Projects", project)
+    memory_root = os.path.normpath(str(MEMORY_ROOT))
+    ov = os.path.join(memory_root, "Projects", project)
+    boot_script = os.path.join(str(SCRIPT_DIR), "memory_boot.py")
+    query_script = os.path.join(str(SCRIPT_DIR), "memory_query.py")
+    body = body.replace("python scripts/memory_boot.py", 'python "%s"' % boot_script)
+    body = body.replace("python scripts/memory_query.py", 'python "%s"' % query_script)
+    body = body.replace("`Memory/Rule.md`", "`%s/Rule.md`" % memory_root.replace("\\", "/"))
+    body = body.replace("`Memory\\Rule.md`", "`%s\\Rule.md`" % memory_root)
+    body = body.replace("`Memory/`", "`%s/`" % memory_root.replace("\\", "/"))
+    body = body.replace("`Memory\\`", "`%s\\`" % memory_root)
     return "\n".join([
-        "# 记忆库 · 项目级入口（自动生成，勿手改）",
+        GENERATED_HEADER,
+        GENERATED_MARKER,
         "",
         "> 由 `sync_memory_instructions.py --projects` 生成，",
         "> 正文取自真源 `Memory\\Workflows\\AI工具自定义指令.md` §二「最小版」；要改请改真源再重跑。",
@@ -405,11 +450,13 @@ def hook_text(project, body):
         "",
         "## 本项目记忆怎么读",
         "",
-        "- 项目档案：`%s\\%s\\_overview.md`（`working\\` 下是台账与流水）" % (MEMORY_ROOT, ov),
-        "- 跨层笔记（`Decisions\\` `Lessons\\` `Plans\\` `Preferences\\` `Workflows\\`）平铺在共享层，",
-        "  本项目相关的那批只靠 frontmatter 标记：反查 `scope: %s` 与 `scope: global`" % project,
-        "- 待办在 `Memory\\Todo.md` 的 `## %s` 分组；完成 = 移走（追加到 `working\\completed.md` 并从 Todo 删除）" % project,
-        "- 上面这个分组不存在时**别静默**：先 grep scope，再问用户是否为本项目建档",
+        "- 启动：`python \"%s\" --cwd .`；只加载热层、本项目 overview/state 与 Todo 切片。" % boot_script,
+        "- 按需查历史/原因/踩坑：`python \"%s\" \"关键词\" --project %s --cwd .`。" % (query_script, project),
+        "- 不预读整棵记忆树；按上面的启动包与检索命令取最小上下文。",
+        "- 项目档案：`%s`；当前状态：`%s`。" % (
+            os.path.join(ov, "_overview.md"), os.path.join(ov, "_state.md")),
+        "- 跨层笔记（`Decisions\\` `Lessons\\` `Preferences\\` `Workflows\\`）按 `scope` 检索，不按目录通读。",
+        "- Todo 分组不存在时**别静默**：先检索 scope，再问用户是否为本项目建档。",
         "",
     ])
 
@@ -431,18 +478,42 @@ def deploy_projects(check_only):
         % (len(body), len(roots) + len(unresolved), len(roots)))
     problems = 0
     for name in sorted(roots):
+        if not _is_within_code_root(roots[name]):
+            log("[SKIP] %-24s 代码根解析到 CODE_ROOT 之外：%s" % (name, roots[name]))
+            problems += 1
+            continue
         target = os.path.join(roots[name], HOOK_NAME)
+        if not _is_within_code_root(target):
+            log("[SKIP] %-24s %s 解析到 CODE_ROOT 之外：%s" % (name, HOOK_NAME, target))
+            problems += 1
+            continue
         want = hook_text(name, body)
         if os.path.exists(target):
-            cur = io.open(target, encoding="utf-8", errors="replace").read().strip()
-            mine = cur.startswith("# 记忆库 · 项目级入口")
+            with io.open(target, encoding="utf-8", errors="replace") as f:
+                cur = f.read().strip()
+            mine = cur.startswith(GENERATED_HEADER) and (
+                GENERATED_MARKER in cur or "sync_memory_instructions.py --projects" in cur
+            )
             if not mine:
                 log("[KEEP] %-24s 已有非本脚本生成的 %s —— 按「用户手改文件绝不自动改」不覆盖"
                     % (name, HOOK_NAME))
                 continue
             if cur != want.strip():
-                log("[DRIFT] %-24s 钩子与真源不一致：%s" % (name, target))
-                problems += 1
+                if check_only:
+                    log("[DRIFT] %-24s 钩子与真源不一致：%s" % (name, target))
+                    problems += 1
+                else:
+                    bak = backup_file(target)
+                    with io.open(target, "w", encoding="utf-8", newline="") as f:
+                        f.write(want)
+                    with io.open(target, encoding="utf-8") as f:
+                        recheck = f.read()
+                    if bad_ctrl(recheck):
+                        log("[FATAL] %-24s 更新后检出裸控制符：%s" % (name, target))
+                        problems += 1
+                    else:
+                        log("[UPDATE] %-24s 已更新为真源（备份 %s）"
+                            % (name, os.path.basename(bak)))
             else:
                 log("[OK]   %-24s 钩子在位且一致：%s" % (name, target))
             continue
@@ -450,8 +521,10 @@ def deploy_projects(check_only):
             log("[MISS] %-24s 未部署：%s" % (name, roots[name]))
             problems += 1
             continue
-        io.open(target, "w", encoding="utf-8", newline="").write(want)
-        recheck = io.open(target, encoding="utf-8").read()
+        with io.open(target, "w", encoding="utf-8", newline="") as f:
+            f.write(want)
+        with io.open(target, encoding="utf-8") as f:
+            recheck = f.read()
         if bad_ctrl(recheck):
             log("[FATAL] %-24s 写入后检出裸控制符，请检查写入链" % name)
             problems += 1
@@ -464,9 +537,14 @@ def deploy_projects(check_only):
         for name, k in unresolved:
             log("  [NOROOT] %-24s 目录名命中 %d 个" % (name, k))
     if check_only:
-        log("=> 项目级钩子校验：%s" % ("全部在位一致" if problems == 0 else "有 %d 处待部署/漂移" % problems))
-        return 1 if problems else 0
-    return 0
+        if problems:
+            status = "有 %d 处待部署/漂移" % problems
+        else:
+            status = "所有已定位项目在位一致"
+        if unresolved:
+            status += "；%d 个 NOROOT 仅报告" % len(unresolved)
+        log("=> 项目级钩子校验：%s" % status)
+    return 1 if problems else 0
 
 
 def main():

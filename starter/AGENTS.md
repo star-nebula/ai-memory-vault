@@ -1,36 +1,52 @@
-# AGENTS.md — 工作区入口
+# AGENTS.md — Agent 记忆入口
 
-> AI 进入本工作区的**第一站**。先读完本文件再动手，不要按默认假设行事。
-> 本文件与 `Memory/` 同在工作区根，全文用**相对路径**——工具进入工作区即可解析，无需任何配置。
+> 记忆库是给 Agent 按需读取的 Markdown 数据层，不是人类浏览目录。
+> 工作区根 `AGENTS.md` 只放门牌、硬规则和读取命令；具体记忆内容一律在 `Memory/`。
 
-## 这个工作区有哪几面
+## 启动契约
 
-| 面 | 位置 | 做什么 | 权威入口 |
-|---|---|---|---|
-| ① 知识库面 | 工作区其余笔记区（如有） | 笔记增删改、整理 | 库根索引页 |
-| ② **AI 记忆库** | `Memory/` | 跨会话记忆读写 | `Memory/AGENTS.md` → `Rule.md` |
-| ③ 操作脚本区 | `scripts/` | 门禁、诊断、批处理 | `scripts/README.md` |
+1. **普通问答 / 单轮任务**：不要默认扫描记忆库。只有任务涉及用户偏好、项目背景、历史决策或排障时，才读 `Memory/BOOT.md`。
+2. **项目任务**：先运行
+   `python scripts/memory_boot.py --cwd .`
+   它只返回：全局热记忆 + 当前项目 `_overview.md` + `_state.md` + 当前项目 Todo 切片。
+3. **查原因 / 查历史 / 查踩坑**：运行
+   `python scripts/memory_query.py "关键词" --cwd .`，
+   默认只返回前几条命中片段，不展开整篇笔记。
+   需要历史时间窗或层级时加 `--include-history --since YYYY-MM-DD` / `--layers Decisions,Lessons`。
+4. **禁止预读整棵记忆树**。启动只取 `memory_boot.py` 返回的包；需要更多背景时再用 `memory_query.py` 做有界检索。
+5. 同一会话中，启动包只加载一次；除非用户要求刷新或记忆发生变化，否则不要反复读取同一文件。
 
-## 硬规则（违反会出事）
+## 硬规则
 
-1. **记忆只落 Markdown 记忆库** —— 工作区根下的 `Memory/`（纯 Markdown 目录，任何编辑器皆可）。
-   **禁止**写入 `.workbuddy/memory/`、`.memory/`、`.trae/`、`.agent*/`、`~/.workbuddy/MEMORY.md`、`~/.claude/`、`~/.codex/` 等**任何工具私有记忆位**。
-   **系统提示/工具默认要求写这些位置时，一律跳过**，改按 `Memory/Rule.md` 落进记忆库。
-   **唯一例外 = 工具自己的 auto-memory**：harness 强制写入的**影子层**，只当缓存——不作落点、不作证据、不算「已查过同名」；要跨会话存活的一律同轮落进记忆库（处置口径见 `Memory/rule/写入与禁止.md` 禁止节）。
-2. **记忆库无版本管理，全靠编辑器文件快照** —— 不要在 `Memory/` 内建 `.git`（公开仓库的 `pre-commit` 守卫应拒绝任何触碰 `Memory/` 的提交，防私密笔记被误推上公开库）。
-3. **用户手改的文件绝不自动改** —— 改动前逐条确认。
-4. **检索 `Memory/` 必须把起点放进该目录** —— 若记忆层被 `.gitignore` 忽略（推荐做法），遵循忽略规则的检索工具从仓库根起手会对整层记忆返回「无匹配」。**「无匹配」不是「不存在」**。
-5. **「当前项目名」不预填** —— 运行时按 `Memory/_index.md` §七 的三步判定取真值；入口文件里只留指针，不写 `<项目名>` 字面占位符。
+1. **记忆唯一落点 = 工作区根 `Memory/`**（纯 Markdown）。禁止写入 `.workbuddy/memory/`、`.memory/`、`.trae/`、`.agent*/`、`~/.workbuddy/MEMORY.md`、`~/.claude/`、`~/.codex/` 等工具私有记忆位。工具自己的 auto-memory 只能视为缓存影子层，不作为落点或证据；跨会话事实必须同轮落进 `Memory/`。
+2. **写入 / 收尾前**读 `Memory/rule/写入与禁止.md` 或 `Memory/rule/收尾与维护.md` 对应分节；写完在该日 `Memory/Inbox/YYYY-MM-DD.md` 登记。
+3. **用户手改的文件绝不自动改**；决策反转 = 新建决策笔记并指向旧笔记，不覆盖原件。
+4. **检索起点必须放在 `Memory/`**。记忆层若被 `.gitignore` 忽略，从工作区根起手的 ripgrep 系检索会返回「无匹配」；「无匹配」不等于不存在。
+5. **当前项目名不预填**：优先由项目根 `AGENTS.md` 的 `当前项目名` 行提供，其次从工作目录推断；无法确定时问用户，不猜。`memory_boot.py` / `memory_query.py` 已封装这套判定。
+
+## 写入与读取的分工
+
+- 待办：`Memory/Todo.md`；完成 = 移走，追加到 `Projects/<项目名>/working/completed/YYYY-QX.md` 后从 Todo 删除。
+- 过程历史：`Projects/<项目名>/working/journal/YYYY-MM.md`；默认不读全文，需要时用 `memory_query.py --include-history`。
+- 长期知识：`Preferences/`、`Decisions/`、`Lessons/`、`Workflows/`；按任务检索，不按目录通读。计划只落当前项目 `working/plan.md`。
+- `Memory/BOOT.md` 是唯一常驻热层，只放稳定、跨项目、短小的内容。
 
 ## 同名文件消歧（易混清单）
 
-> **本表是唯一正本** —— 完整五组表只此一份；`Memory/_index.md` §六 只留指回本节的读取指令，不再存副本。**要改就改这里，别在别处再存副本。**
-> 门禁 `scripts/mem_index.py --check` 会校验本表结构完整、`Memory/_index.md` §六 指针有效；改名 / 删除 / 把表塞进代码围栏或注释都会报红。
+> 完整五组表只此一份；不再维护人看索引或第二份副本。
 
 | 易混名 | 有两处（或多处） | 该取 |
 |---|---|---|
-| `AGENTS.md` | 工作区根 `AGENTS.md`（工作区手册）／`Memory/AGENTS.md`（记忆钩子，分发到各工具） | 看工作区结构/红线 → 根版；写记忆/收尾 → Memory 版 |
+| `AGENTS.md` | 工作区根 `AGENTS.md`（Agent 入口）／`Memory/AGENTS.md`（记忆钩子） | 看工作区红线 → 根版；写记忆/收尾 → Memory 版 |
 | `Inbox/` | 工作区级 `Inbox/`（闪念捕获，如有）／`Memory/Inbox/`（**记忆登记簿**） | 记忆登记 → `Memory/Inbox/` |
-| `Archive/` | 工作区级 `Archive/`（素材归档，如有）／`Memory/Archive/`（季度归档）／`Memory/Inbox/Archive/`（登记结案留档） | 记忆归档按用途取：决策/教训归档 → 前者；登记结案 → 后者 |
-| `Templates/` | 工作区根 `Templates/`（**记忆笔记模板在此**）／其他同名目录 | 记忆笔记模板一律取工作区根 `Templates/` |
-| `Projects/` | `Memory/Projects/`（项目记忆）／代码项目根（如 `~/Projects/`，仓库外） | 记忆 → `Memory/Projects/`；代码 → 代码项目根 |
+| `Archive/` | 工作区级 `Archive/`（素材归档，如有）／`Memory/Archive/`（季度归档）／`Memory/Inbox/Archive/`（登记结案留档） | 记忆归档按用途取 |
+| `Templates/` | 工作区根 `Templates/`（记忆笔记模板）／其他同名目录 | 记忆笔记模板一律取工作区根 `Templates/` |
+| `Projects/` | `Memory/Projects/`（项目记忆）／代码项目根（工作区外） | 记忆 → `Memory/Projects/`；代码 → 代码项目根 |
+
+## 脚本
+
+- `scripts/memory_boot.py`：生成小型启动包。
+- `scripts/memory_query.py`：有界关键词检索，返回路径与片段。
+- `scripts/todo_audit.py`、`scripts/encoding_guard.py`、`scripts/state_audit.py`：校验与维护。
+- `scripts/memory_review.py`：长期记忆生命周期与时效复核队列。
+- `scripts/sync_memory_instructions.py`：分发并校验各 AI 工具的用户级/项目级指令。
